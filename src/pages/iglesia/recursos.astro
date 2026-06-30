@@ -1,0 +1,202 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Header from '../../components/Header.astro';
+
+interface Recurso {
+  titulo: string;
+  descripcion: string;
+  googleBooksId: string;
+}
+
+interface Seccion {
+  id: string;
+  titulo: string;
+  recursos: Recurso[];
+}
+
+const secciones: Seccion[] = [
+  {
+    id: "nuevos-creyentes",
+    titulo: "Recursos para Nuevos Creyentes",
+    recursos: [
+      {
+        titulo: "Libro para nuevos creyentes",
+        descripcion: "Guía de introducción a la fe cristiana.",
+        googleBooksId: "HtVgOWebnQEC",
+      },
+    ],
+  },
+  {
+    id: "discipulado-crecimiento",
+    titulo: "Recursos para Discipulado y Crecimiento",
+    recursos: [],
+  },
+  {
+    id: "celulas-grupos-contacto",
+    titulo: "Recursos para Células o Grupos de Contacto",
+    recursos: [],
+  },
+];
+---
+
+<Layout title="Recursos | Puerta del Cielo">
+  <Header />
+
+  <main class="pt-32 pb-24 px-6 max-w-7xl mx-auto">
+    <h1 class="font-display text-5xl sm:text-6xl uppercase text-center mb-16">
+      Recursos
+    </h1>
+
+    {secciones.map((seccion) => (
+      <section id={seccion.id} class="mb-16">
+        <h2 class="font-display text-2xl sm:text-3xl uppercase text-pdc-cyan mb-6">
+          {seccion.titulo}
+        </h2>
+
+        {seccion.recursos.length > 0 ? (
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {seccion.recursos.map((recurso) => (
+              <div class="bg-pdc-dark border border-white/10 rounded-xl overflow-hidden flex flex-col">
+                <img
+                  src={`https://books.google.com/books/content?id=${recurso.googleBooksId}&printsec=frontcover&img=1&zoom=1`}
+                  alt={recurso.titulo}
+                  class="w-full h-56 object-contain bg-black/30 p-4"
+                  loading="lazy"
+                />
+                <div class="p-5 flex flex-col flex-1">
+                  <h3 class="font-body font-bold text-lg mb-2">{recurso.titulo}</h3>
+                  <p class="font-body text-white/60 text-sm mb-4 flex-1">
+                    {recurso.descripcion}
+                  </p>
+                  <div class="flex flex-wrap gap-3 mt-auto">
+                    <button
+                      type="button"
+                      class="book-modal-trigger flex-1 bg-gradient-to-r from-pdc-magenta to-pdc-purple font-body font-bold uppercase tracking-wide text-xs px-5 py-3 rounded-full hover:scale-105 transition-transform duration-200"
+                      data-book-id={recurso.googleBooksId}
+                      data-book-title={recurso.titulo}
+                    >
+                      Ver libro
+                    </button>
+                    <a
+                      href={`https://books.google.com/books?id=${recurso.googleBooksId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="border-2 border-pdc-cyan text-pdc-cyan font-body font-bold uppercase tracking-wide text-xs px-5 py-3 rounded-full hover:bg-pdc-cyan hover:text-pdc-black transition-colors duration-200 text-center"
+                    >
+                      Abrir en Google Books
+                    </a>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p class="font-body text-white/40 text-sm italic">Próximamente más recursos.</p>
+        )}
+      </section>
+    ))}
+  </main>
+
+  <!-- Modal de libro embebido -->
+  <div
+    id="book-modal"
+    class="hidden fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm items-center justify-center p-4"
+  >
+    <div class="bg-pdc-dark border border-white/10 rounded-xl w-full max-w-3xl h-[85vh] sm:h-[80vh] flex flex-col overflow-hidden">
+      <div class="flex items-center justify-between px-5 py-4 border-b border-white/10 shrink-0">
+        <h3 id="book-modal-title" class="font-body font-bold text-sm sm:text-base truncate pr-4">
+          Libro
+        </h3>
+        <button
+          id="book-modal-close"
+          type="button"
+          aria-label="Cerrar"
+          class="text-white/70 hover:text-pdc-magenta transition-colors shrink-0"
+        >
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div id="book-modal-viewer" class="flex-1 bg-white"></div>
+    </div>
+  </div>
+</Layout>
+
+<script src="https://www.google.com/books/jsapi.js"></script>
+<script>
+  let booksApiReady = false;
+  let pendingBookId: string | null = null;
+
+  // @ts-ignore
+  window.google?.books?.load?.();
+
+  function tryInitBooksApi() {
+    // @ts-ignore
+    if (window.google && window.google.books) {
+      // @ts-ignore
+      window.google.books.setOnLoadCallback(() => {
+        booksApiReady = true;
+        if (pendingBookId) {
+          renderBook(pendingBookId);
+          pendingBookId = null;
+        }
+      });
+    } else {
+      setTimeout(tryInitBooksApi, 200);
+    }
+  }
+  tryInitBooksApi();
+
+  function renderBook(bookId: string) {
+    const viewerEl = document.getElementById("book-modal-viewer");
+    if (!viewerEl) return;
+    viewerEl.innerHTML = "";
+    // @ts-ignore
+    const viewer = new window.google.books.DefaultViewer(viewerEl);
+    viewer.load(bookId);
+  }
+
+  const modal = document.getElementById("book-modal");
+  const modalTitle = document.getElementById("book-modal-title");
+  const closeBtn = document.getElementById("book-modal-close");
+
+  function openModal(bookId: string, title: string) {
+    if (!modal) return;
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+    document.body.style.overflow = "hidden";
+    if (modalTitle) modalTitle.textContent = title;
+
+    if (booksApiReady) {
+      renderBook(bookId);
+    } else {
+      pendingBookId = bookId;
+    }
+  }
+
+  function closeModal() {
+    if (!modal) return;
+    modal.classList.add("hidden");
+    modal.classList.remove("flex");
+    document.body.style.overflow = "";
+    const viewerEl = document.getElementById("book-modal-viewer");
+    if (viewerEl) viewerEl.innerHTML = "";
+  }
+
+  document.querySelectorAll(".book-modal-trigger").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const bookId = btn.getAttribute("data-book-id");
+      const title = btn.getAttribute("data-book-title") || "Libro";
+      if (bookId) openModal(bookId, title);
+    });
+  });
+
+  closeBtn?.addEventListener("click", closeModal);
+  modal?.addEventListener("click", (e) => {
+    if (e.target === modal) closeModal();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeModal();
+  });
+</script>
