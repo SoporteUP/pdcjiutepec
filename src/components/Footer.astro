@@ -1,0 +1,45 @@
+---
+const socials = [
+  {
+    label: "Facebook",
+    href: "https://www.facebook.com/pdcjiutepec/",
+    icon: "M22 12.06C22 6.5 17.52 2 12 2S2 6.5 2 12.06c0 5 3.66 9.16 8.44 9.94v-7.03H7.9v-2.91h2.54V9.85c0-2.5 1.49-3.89 3.78-3.89 1.09 0 2.24.2 2.24.2v2.47h-1.26c-1.24 0-1.63.78-1.63 1.57v1.88h2.78l-.44 2.91h-2.34V22c4.78-.78 8.44-4.94 8.44-9.94Z",
+  },
+  {
+    label: "YouTube",
+    href: "https://www.youtube.com/@pdccivac",
+    icon: "M23.5 6.2a3 3 0 0 0-2.1-2.1C19.4 3.5 12 3.5 12 3.5s-7.4 0-9.4.6A3 3 0 0 0 .5 6.2 31 31 0 0 0 0 12a31 31 0 0 0 .5 5.8 3 3 0 0 0 2.1 2.1c2 .6 9.4.6 9.4.6s7.4 0 9.4-.6a3 3 0 0 0 2.1-2.1A31 31 0 0 0 24 12a31 31 0 0 0-.5-5.8ZM9.6 15.6V8.4l6.3 3.6-6.3 3.6Z",
+  },
+];
+---
+
+<footer class="border-t border-white/10 bg-pdc-black py-10 px-6">
+  <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
+    <a href="/" class="flex items-center gap-3">
+      <img src="/images/logo-white.png" alt="Puerta del Cielo" class="h-10 w-auto" />
+      <span class="font-display text-sm tracking-wide leading-none">
+        PUERTA<br /><span class="text-pdc-cyan">DEL CIELO</span>
+      </span>
+    </a>
+
+    <div class="flex items-center gap-4">
+      {socials.map((s) => (
+        <a
+          href={s.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label={s.label}
+          class="flex items-center justify-center w-10 h-10 rounded-full border border-white/10 text-white/60 hover:text-pdc-cyan hover:border-pdc-cyan transition-colors duration-200"
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+            <path d={s.icon} />
+          </svg>
+        </a>
+      ))}
+    </div>
+
+    <p class="font-body text-xs text-white/40 order-last sm:order-none">
+      © {new Date().getFullYear()} Puerta del Cielo. Todos los derechos reservados.
+    </p>
+  </div>
+</footer>

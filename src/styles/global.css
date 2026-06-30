@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+@theme {
+  --color-pdc-black: #0a0a0f;
+  --color-pdc-dark: #13131a;
+  --color-pdc-cyan: #22d3ee;
+  --color-pdc-magenta: #e879f9;
+  --color-pdc-teal: #2dd4bf;
+  --color-pdc-purple: #a855f7;
+
+  --font-display: "Anton", sans-serif;
+  --font-body: "Inter", sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-pdc-black);
+  color: white;
+  font-family: var(--font-body);
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes spin-slower {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+.animate-spin-slow {
+  animation: spin-slow 20s linear infinite;
+}
+
+.animate-spin-slower {
+  animation: spin-slower 25s linear infinite;
+}
