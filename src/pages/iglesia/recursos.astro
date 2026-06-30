@@ -123,38 +123,16 @@ const secciones: Seccion[] = [
   </div>
 </Layout>
 
-<script src="https://www.google.com/books/jsapi.js"></script>
 <script>
-  let booksApiReady = false;
-  let pendingBookId: string | null = null;
-
-  // @ts-ignore
-  window.google?.books?.load?.();
-
-  function tryInitBooksApi() {
-    // @ts-ignore
-    if (window.google && window.google.books) {
-      // @ts-ignore
-      window.google.books.setOnLoadCallback(() => {
-        booksApiReady = true;
-        if (pendingBookId) {
-          renderBook(pendingBookId);
-          pendingBookId = null;
-        }
-      });
-    } else {
-      setTimeout(tryInitBooksApi, 200);
-    }
-  }
-  tryInitBooksApi();
-
   function renderBook(bookId: string) {
     const viewerEl = document.getElementById("book-modal-viewer");
     if (!viewerEl) return;
     viewerEl.innerHTML = "";
-    // @ts-ignore
-    const viewer = new window.google.books.DefaultViewer(viewerEl);
-    viewer.load(bookId);
+    const iframe = document.createElement("iframe");
+    iframe.src = `https://books.google.com/books?id=${bookId}&printsec=frontcover&output=embed`;
+    iframe.className = "w-full h-full border-0";
+    iframe.setAttribute("allowfullscreen", "true");
+    viewerEl.appendChild(iframe);
   }
 
   const modal = document.getElementById("book-modal");
@@ -167,12 +145,7 @@ const secciones: Seccion[] = [
     modal.classList.add("flex");
     document.body.style.overflow = "hidden";
     if (modalTitle) modalTitle.textContent = title;
-
-    if (booksApiReady) {
-      renderBook(bookId);
-    } else {
-      pendingBookId = bookId;
-    }
+    renderBook(bookId);
   }
 
   function closeModal() {
