@@ -41,7 +41,7 @@ async function enviarCorreoNotificacion(env, datos) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Puerta del Cielo <onboarding@resend.dev>',
+        from: 'Puerta del Cielo <notificaciones@pdcjiutepec.org>',
         to: 'dancalvillo@hotmail.com',
         subject: `Nuevo contacto: ${datos.nombre}`,
         text: `Nombre: ${datos.nombre}\nCelular: ${datos.celular}\nMensaje: ${datos.mensaje || '(sin mensaje)'}`,
