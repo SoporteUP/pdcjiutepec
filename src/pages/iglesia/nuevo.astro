@@ -1,0 +1,118 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Header from '../../components/Header.astro';
+---
+
+<Layout title="Soy Nuevo Aquí | Puerta del Cielo">
+  <Header />
+
+  <main class="pt-32 pb-24 px-6 max-w-2xl mx-auto">
+    <h1 class="font-display text-5xl sm:text-6xl uppercase text-center mb-6">
+      Soy Nuevo Aquí
+    </h1>
+    <p class="font-body text-white/60 text-center mb-12 leading-relaxed">
+      Cuéntanos un poco de ti. Nos encantaría conectarte con un grupo de contacto,
+      invitarte a discipulado, u orar por ti.
+    </p>
+
+    <form id="nuevo-form" class="bg-pdc-dark border border-white/10 rounded-xl p-6 sm:p-8 flex flex-col gap-5">
+      <div>
+        <label for="nombre" class="block font-body font-semibold text-sm mb-2">Nombre</label>
+        <input
+          type="text"
+          id="nombre"
+          name="nombre"
+          required
+          maxlength="200"
+          class="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 font-body text-sm focus:outline-none focus:border-pdc-cyan transition-colors"
+          placeholder="Tu nombre completo"
+        />
+      </div>
+
+      <div>
+        <label for="celular" class="block font-body font-semibold text-sm mb-2">Número de celular</label>
+        <input
+          type="tel"
+          id="celular"
+          name="celular"
+          required
+          maxlength="30"
+          class="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 font-body text-sm focus:outline-none focus:border-pdc-cyan transition-colors"
+          placeholder="777 123 4567"
+        />
+      </div>
+
+      <div>
+        <label for="mensaje" class="block font-body font-semibold text-sm mb-2">
+          Mensaje <span class="text-white/40 font-normal">(opcional)</span>
+        </label>
+        <textarea
+          id="mensaje"
+          name="mensaje"
+          maxlength="2000"
+          rows="4"
+          class="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 font-body text-sm focus:outline-none focus:border-pdc-cyan transition-colors resize-none"
+          placeholder="¿Cómo podemos ayudarte u orar por ti?"
+        ></textarea>
+      </div>
+
+      <!-- Honeypot anti-spam, oculto para humanos -->
+      <input type="text" name="website" tabindex="-1" autocomplete="off" class="hidden" />
+
+      <button
+        type="submit"
+        class="bg-gradient-to-r from-pdc-magenta to-pdc-purple font-body font-bold uppercase tracking-wide text-sm px-8 py-4 rounded-full hover:scale-105 transition-transform duration-200"
+      >
+        Enviar
+      </button>
+
+      <p id="nuevo-form-status" class="font-body text-sm text-center min-h-[1.25rem]"></p>
+    </form>
+  </main>
+</Layout>
+
+<script>
+  const form = document.getElementById('nuevo-form') as HTMLFormElement | null;
+  const status = document.getElementById('nuevo-form-status');
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!status) return;
+
+    const data = new FormData(form);
+    const payload = {
+      nombre: data.get('nombre'),
+      celular: data.get('celular'),
+      mensaje: data.get('mensaje'),
+      website: data.get('website'),
+    };
+
+    const submitBtn = form.querySelector('button[type="submit"]') as HTMLButtonElement | null;
+    if (submitBtn) submitBtn.disabled = true;
+    status.textContent = 'Enviando...';
+    status.className = 'font-body text-sm text-center min-h-[1.25rem] text-white/60';
+
+    try {
+      const res = await fetch('/api/contacto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const result = await res.json();
+
+      if (res.ok && result.ok) {
+        status.textContent = '¡Gracias! Nos pondremos en contacto contigo pronto.';
+        status.className = 'font-body text-sm text-center min-h-[1.25rem] text-pdc-cyan';
+        form.reset();
+      } else {
+        status.textContent = result.error || 'Ocurrió un error. Intenta de nuevo.';
+        status.className = 'font-body text-sm text-center min-h-[1.25rem] text-pdc-magenta';
+      }
+    } catch {
+      status.textContent = 'Ocurrió un error de conexión. Intenta de nuevo.';
+      status.className = 'font-body text-sm text-center min-h-[1.25rem] text-pdc-magenta';
+    } finally {
+      if (submitBtn) submitBtn.disabled = false;
+    }
+  });
+</script>

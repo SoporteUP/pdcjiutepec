@@ -1,0 +1,9 @@
+name = "pdcjiutepec"
+pages_build_output_dir = "dist"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pdc-contactos"
+database_id = "fd95c56c-148f-4769-972d-9f0fad85ac58"

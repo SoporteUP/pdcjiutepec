@@ -1,0 +1,39 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+const error = Astro.url.searchParams.get('error') === '1';
+---
+
+<Layout title="Admin | Puerta del Cielo">
+  <main class="min-h-screen flex items-center justify-center px-6">
+    <form
+      method="POST"
+      action="/api/admin-login"
+      class="bg-pdc-dark border border-white/10 rounded-xl p-8 w-full max-w-sm flex flex-col gap-5"
+    >
+      <h1 class="font-display text-2xl uppercase text-center mb-2">Acceso Admin</h1>
+
+      {error && (
+        <p class="font-body text-sm text-pdc-magenta text-center">Contraseña incorrecta.</p>
+      )}
+
+      <div>
+        <label for="password" class="block font-body font-semibold text-sm mb-2">Contraseña</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          required
+          class="w-full bg-black/30 border border-white/10 rounded-lg px-4 py-3 font-body text-sm focus:outline-none focus:border-pdc-cyan transition-colors"
+        />
+      </div>
+
+      <button
+        type="submit"
+        class="bg-gradient-to-r from-pdc-magenta to-pdc-purple font-body font-bold uppercase tracking-wide text-sm px-8 py-4 rounded-full hover:scale-105 transition-transform duration-200"
+      >
+        Entrar
+      </button>
+    </form>
+  </main>
+</Layout>

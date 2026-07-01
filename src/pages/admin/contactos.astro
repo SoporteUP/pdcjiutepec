@@ -1,0 +1,46 @@
+---
+import Layout from '../../layouts/Layout.astro';
+
+export const prerender = false;
+
+const env = Astro.locals.runtime.env;
+
+const { results } = await env.DB.prepare(
+  'SELECT id, nombre, celular, mensaje, creado_en FROM contactos ORDER BY id DESC'
+).all<{ id: number; nombre: string; celular: string; mensaje: string | null; creado_en: string }>();
+---
+
+<Layout title="Contactos | Puerta del Cielo">
+  <main class="max-w-5xl mx-auto px-6 py-16">
+    <div class="flex items-center justify-between mb-10">
+      <h1 class="font-display text-3xl sm:text-4xl uppercase">Contactos Recibidos</h1>
+      <form method="POST" action="/api/admin-logout">
+        <button
+          type="submit"
+          class="border border-white/20 text-white/70 font-body text-xs uppercase tracking-wide px-4 py-2 rounded-full hover:border-pdc-magenta hover:text-pdc-magenta transition-colors"
+        >
+          Cerrar sesión
+        </button>
+      </form>
+    </div>
+
+    {results.length === 0 ? (
+      <p class="font-body text-white/40 text-sm italic">Todavía no hay contactos registrados.</p>
+    ) : (
+      <div class="flex flex-col gap-4">
+        {results.map((c) => (
+          <div class="bg-pdc-dark border border-white/10 rounded-xl p-5">
+            <div class="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+              <h2 class="font-body font-bold text-lg">{c.nombre}</h2>
+              <span class="font-body text-xs text-white/40">{c.creado_en}</span>
+            </div>
+            <p class="font-body text-sm text-pdc-cyan mb-2">{c.celular}</p>
+            {c.mensaje && (
+              <p class="font-body text-sm text-white/70 leading-relaxed">{c.mensaje}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    )}
+  </main>
+</Layout>
