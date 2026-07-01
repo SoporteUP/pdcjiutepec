@@ -5,7 +5,8 @@ import Header from '../../components/Header.astro';
 interface Recurso {
   titulo: string;
   descripcion: string;
-  googleBooksId: string;
+  tipo: "historieta";
+  imagenes: string[];
 }
 
 interface Seccion {
@@ -20,9 +21,17 @@ const secciones: Seccion[] = [
     titulo: "Recursos para Nuevos Creyentes",
     recursos: [
       {
-        titulo: "Libro para nuevos creyentes",
-        descripcion: "Guía de introducción a la fe cristiana.",
-        googleBooksId: "HtVgOWebnQEC",
+        titulo: "Nuevo en la Fe: Primera Vez",
+        descripcion: "Historieta sobre dar el primer paso en la fe.",
+        tipo: "historieta",
+        imagenes: [
+          "/Libros-manuales/Primera Vez-1.jpg",
+          "/Libros-manuales/Primera Vez-2.jpg",
+          "/Libros-manuales/Primera Vez-3.jpg",
+          "/Libros-manuales/Primera Vez-4.jpg",
+          "/Libros-manuales/Primera Vez-5.jpg",
+          "/Libros-manuales/Primera Vez-6.jpg",
+        ],
       },
     ],
   },
@@ -58,9 +67,9 @@ const secciones: Seccion[] = [
             {seccion.recursos.map((recurso) => (
               <div class="bg-pdc-dark border border-white/10 rounded-xl overflow-hidden flex flex-col">
                 <img
-                  src={`https://books.google.com/books/content?id=${recurso.googleBooksId}&printsec=frontcover&img=1&zoom=1`}
+                  src={recurso.imagenes[0]}
                   alt={recurso.titulo}
-                  class="w-full h-56 object-contain bg-black/30 p-4"
+                  class="w-full h-56 object-cover object-top"
                   loading="lazy"
                 />
                 <div class="p-5 flex flex-col flex-1">
@@ -68,24 +77,14 @@ const secciones: Seccion[] = [
                   <p class="font-body text-white/60 text-sm mb-4 flex-1">
                     {recurso.descripcion}
                   </p>
-                  <div class="flex flex-wrap gap-3 mt-auto">
-                    <button
-                      type="button"
-                      class="book-modal-trigger flex-1 bg-gradient-to-r from-pdc-magenta to-pdc-purple font-body font-bold uppercase tracking-wide text-xs px-5 py-3 rounded-full hover:scale-105 transition-transform duration-200"
-                      data-book-id={recurso.googleBooksId}
-                      data-book-title={recurso.titulo}
-                    >
-                      Ver libro
-                    </button>
-                    <a
-                      href={`https://books.google.com/books?id=${recurso.googleBooksId}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      class="border-2 border-pdc-cyan text-pdc-cyan font-body font-bold uppercase tracking-wide text-xs px-5 py-3 rounded-full hover:bg-pdc-cyan hover:text-pdc-black transition-colors duration-200 text-center"
-                    >
-                      Abrir en Google Books
-                    </a>
-                  </div>
+                  <button
+                    type="button"
+                    class="comic-modal-trigger w-full bg-gradient-to-r from-pdc-magenta to-pdc-purple font-body font-bold uppercase tracking-wide text-xs px-5 py-3 rounded-full hover:scale-105 transition-transform duration-200"
+                    data-comic-title={recurso.titulo}
+                    data-comic-images={JSON.stringify(recurso.imagenes)}
+                  >
+                    Leer historieta
+                  </button>
                 </div>
               </div>
             ))}
@@ -97,18 +96,18 @@ const secciones: Seccion[] = [
     ))}
   </main>
 
-  <!-- Modal de libro embebido -->
+  <!-- Modal lector de historieta -->
   <div
-    id="book-modal"
-    class="hidden fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm items-center justify-center p-4"
+    id="comic-modal"
+    class="hidden fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm items-center justify-center p-0 sm:p-4"
   >
-    <div class="bg-pdc-dark border border-white/10 rounded-xl w-full max-w-3xl h-[85vh] sm:h-[80vh] flex flex-col overflow-hidden">
-      <div class="flex items-center justify-between px-5 py-4 border-b border-white/10 shrink-0">
-        <h3 id="book-modal-title" class="font-body font-bold text-sm sm:text-base truncate pr-4">
-          Libro
+    <div class="bg-pdc-dark border-0 sm:border sm:border-white/10 sm:rounded-xl w-full h-full sm:max-w-2xl sm:h-[90vh] flex flex-col overflow-hidden">
+      <div class="flex items-center justify-between px-4 sm:px-5 py-3 sm:py-4 border-b border-white/10 shrink-0">
+        <h3 id="comic-modal-title" class="font-body font-bold text-sm sm:text-base truncate pr-4">
+          Historieta
         </h3>
         <button
-          id="book-modal-close"
+          id="comic-modal-close"
           type="button"
           aria-label="Cerrar"
           class="text-white/70 hover:text-pdc-magenta transition-colors shrink-0"
@@ -118,34 +117,71 @@ const secciones: Seccion[] = [
           </svg>
         </button>
       </div>
-      <div id="book-modal-viewer" class="flex-1 bg-white"></div>
+
+      <div id="comic-modal-viewer" class="flex-1 relative bg-black flex items-center justify-center overflow-hidden touch-pan-y">
+        <img id="comic-modal-image" src="" alt="" class="max-w-full max-h-full object-contain select-none" />
+
+        <button
+          id="comic-prev"
+          type="button"
+          aria-label="Página anterior"
+          class="absolute left-1 sm:left-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white rounded-full p-2 transition-colors"
+        >
+          <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+        <button
+          id="comic-next"
+          type="button"
+          aria-label="Página siguiente"
+          class="absolute right-1 sm:right-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/80 text-white rounded-full p-2 transition-colors"
+        >
+          <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="flex items-center justify-center gap-2 py-3 shrink-0 border-t border-white/10">
+        <span id="comic-page-indicator" class="font-body text-xs text-white/60 uppercase tracking-wide"></span>
+      </div>
     </div>
   </div>
 </Layout>
 
 <script>
-  function renderBook(bookId: string) {
-    const viewerEl = document.getElementById("book-modal-viewer");
-    if (!viewerEl) return;
-    viewerEl.innerHTML = "";
-    const iframe = document.createElement("iframe");
-    iframe.src = `https://books.google.com/books?id=${bookId}&printsec=frontcover&output=embed`;
-    iframe.className = "w-full h-full border-0";
-    iframe.setAttribute("allowfullscreen", "true");
-    viewerEl.appendChild(iframe);
+  let comicImages: string[] = [];
+  let comicIndex = 0;
+
+  const modal = document.getElementById("comic-modal");
+  const modalTitle = document.getElementById("comic-modal-title");
+  const closeBtn = document.getElementById("comic-modal-close");
+  const imageEl = document.getElementById("comic-modal-image") as HTMLImageElement | null;
+  const prevBtn = document.getElementById("comic-prev");
+  const nextBtn = document.getElementById("comic-next");
+  const pageIndicator = document.getElementById("comic-page-indicator");
+  const viewer = document.getElementById("comic-modal-viewer");
+
+  function showPage(index: number) {
+    if (!imageEl || comicImages.length === 0) return;
+    comicIndex = Math.max(0, Math.min(index, comicImages.length - 1));
+    imageEl.src = comicImages[comicIndex];
+    if (pageIndicator) {
+      pageIndicator.textContent = `Página ${comicIndex + 1} de ${comicImages.length}`;
+    }
+    if (prevBtn) (prevBtn as HTMLButtonElement).style.visibility = comicIndex === 0 ? "hidden" : "visible";
+    if (nextBtn) (nextBtn as HTMLButtonElement).style.visibility = comicIndex === comicImages.length - 1 ? "hidden" : "visible";
   }
 
-  const modal = document.getElementById("book-modal");
-  const modalTitle = document.getElementById("book-modal-title");
-  const closeBtn = document.getElementById("book-modal-close");
-
-  function openModal(bookId: string, title: string) {
+  function openModal(images: string[], title: string) {
     if (!modal) return;
+    comicImages = images;
     modal.classList.remove("hidden");
     modal.classList.add("flex");
     document.body.style.overflow = "hidden";
     if (modalTitle) modalTitle.textContent = title;
-    renderBook(bookId);
+    showPage(0);
   }
 
   function closeModal() {
@@ -153,15 +189,16 @@ const secciones: Seccion[] = [
     modal.classList.add("hidden");
     modal.classList.remove("flex");
     document.body.style.overflow = "";
-    const viewerEl = document.getElementById("book-modal-viewer");
-    if (viewerEl) viewerEl.innerHTML = "";
+    comicImages = [];
   }
 
-  document.querySelectorAll(".book-modal-trigger").forEach((btn) => {
+  document.querySelectorAll(".comic-modal-trigger").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const bookId = btn.getAttribute("data-book-id");
-      const title = btn.getAttribute("data-book-title") || "Libro";
-      if (bookId) openModal(bookId, title);
+      const title = btn.getAttribute("data-comic-title") || "Historieta";
+      const imagesRaw = btn.getAttribute("data-comic-images");
+      if (!imagesRaw) return;
+      const images = JSON.parse(imagesRaw) as string[];
+      openModal(images, title);
     });
   });
 
@@ -169,7 +206,26 @@ const secciones: Seccion[] = [
   modal?.addEventListener("click", (e) => {
     if (e.target === modal) closeModal();
   });
+  prevBtn?.addEventListener("click", () => showPage(comicIndex - 1));
+  nextBtn?.addEventListener("click", () => showPage(comicIndex + 1));
+
   document.addEventListener("keydown", (e) => {
+    if (modal?.classList.contains("hidden")) return;
     if (e.key === "Escape") closeModal();
+    if (e.key === "ArrowLeft") showPage(comicIndex - 1);
+    if (e.key === "ArrowRight") showPage(comicIndex + 1);
+  });
+
+  // Swipe táctil (móvil)
+  let touchStartX = 0;
+  viewer?.addEventListener("touchstart", (e) => {
+    touchStartX = e.changedTouches[0].clientX;
+  });
+  viewer?.addEventListener("touchend", (e) => {
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = touchEndX - touchStartX;
+    if (Math.abs(diff) < 40) return;
+    if (diff < 0) showPage(comicIndex + 1);
+    else showPage(comicIndex - 1);
   });
 </script>
