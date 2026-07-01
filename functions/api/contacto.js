@@ -1,11 +1,5 @@
-import type { APIRoute } from 'astro';
-
-export const prerender = false;
-
-export const POST: APIRoute = async ({ request, locals }) => {
-  const env = locals.runtime.env;
-
-  let body: Record<string, unknown>;
+export async function onRequestPost({ request, env }) {
+  let body;
   try {
     body = await request.json();
   } catch {
@@ -34,12 +28,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
   await enviarCorreoNotificacion(env, { nombre, celular, mensaje });
 
   return json({ ok: true });
-};
+}
 
-async function enviarCorreoNotificacion(
-  env: App.Locals['runtime']['env'],
-  datos: { nombre: string; celular: string; mensaje: string }
-) {
+async function enviarCorreoNotificacion(env, datos) {
   if (!env.RESEND_API_KEY) return;
 
   try {
@@ -61,7 +52,7 @@ async function enviarCorreoNotificacion(
   }
 }
 
-function json(data: unknown, status = 200) {
+function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
     headers: { 'Content-Type': 'application/json' },
