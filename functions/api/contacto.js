@@ -14,18 +14,19 @@ export async function onRequestPost({ request, env }) {
   const nombre = typeof body.nombre === 'string' ? body.nombre.trim().slice(0, 200) : '';
   const celular = typeof body.celular === 'string' ? body.celular.trim().slice(0, 30) : '';
   const mensaje = typeof body.mensaje === 'string' ? body.mensaje.trim().slice(0, 2000) : '';
+  const interes = typeof body.interes === 'string' ? body.interes.trim().slice(0, 200) : '';
 
   if (!nombre || !celular) {
     return json({ ok: false, error: 'Nombre y celular son obligatorios.' }, 400);
   }
 
   await env.DB.prepare(
-    'INSERT INTO contactos (nombre, celular, mensaje) VALUES (?1, ?2, ?3)'
+    'INSERT INTO contactos (nombre, celular, mensaje, interes) VALUES (?1, ?2, ?3, ?4)'
   )
-    .bind(nombre, celular, mensaje || null)
+    .bind(nombre, celular, mensaje || null, interes || null)
     .run();
 
-  await enviarCorreoNotificacion(env, { nombre, celular, mensaje });
+  await enviarCorreoNotificacion(env, { nombre, celular, mensaje, interes });
 
   return json({ ok: true });
 }
@@ -44,7 +45,7 @@ async function enviarCorreoNotificacion(env, datos) {
         from: 'Puerta del Cielo <notificaciones@pdcjiutepec.org>',
         to: 'dancalvillo@hotmail.com',
         subject: `Nuevo contacto: ${datos.nombre}`,
-        text: `Nombre: ${datos.nombre}\nCelular: ${datos.celular}\nMensaje: ${datos.mensaje || '(sin mensaje)'}`,
+        text: `Nombre: ${datos.nombre}\nCelular: ${datos.celular}\nInterés: ${datos.interes || '(sin especificar)'}\nMensaje: ${datos.mensaje || '(sin mensaje)'}`,
       }),
     });
   } catch {

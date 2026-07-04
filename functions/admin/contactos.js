@@ -9,7 +9,7 @@ function escapeHtml(str) {
 
 export async function onRequestGet({ env }) {
   const { results } = await env.DB.prepare(
-    'SELECT id, nombre, celular, mensaje, creado_en FROM contactos ORDER BY id DESC'
+    'SELECT id, nombre, celular, mensaje, interes, creado_en FROM contactos ORDER BY id DESC'
   ).all();
 
   const rows = results.length
@@ -22,6 +22,7 @@ export async function onRequestGet({ env }) {
             <span class="date">${escapeHtml(c.creado_en)}</span>
           </div>
           <p class="celular">${escapeHtml(c.celular)}</p>
+          ${c.interes ? `<p class="interes">${escapeHtml(c.interes)}</p>` : ''}
           ${c.mensaje ? `<p class="mensaje">${escapeHtml(c.mensaje)}</p>` : ''}
         </div>`
         )
@@ -54,6 +55,7 @@ export async function onRequestGet({ env }) {
   .card-top h2 { font-size: 18px; font-weight: 700; margin: 0; }
   .date { font-size: 12px; color: rgba(255,255,255,0.4); }
   .celular { font-size: 14px; color: #22d3ee; margin: 0 0 8px; }
+  .interes { font-size: 12px; color: #e879f9; text-transform: uppercase; letter-spacing: 0.03em; margin: 0 0 8px; }
   .mensaje { font-size: 14px; color: rgba(255,255,255,0.7); line-height: 1.6; margin: 0; }
   .empty { color: rgba(255,255,255,0.4); font-size: 14px; font-style: italic; }
 </style>

@@ -15,6 +15,66 @@ import Header from '../../components/Header.astro';
       invitarte a discipulado, u orar por ti.
     </p>
 
+    <h2 class="font-body font-bold uppercase text-sm tracking-wide text-white/80 text-center mb-2">
+      ¿De qué manera te gustaría integrarte?
+    </h2>
+    <p class="font-body text-pdc-cyan text-sm font-semibold text-center mb-6">
+      Selecciona una o varias opciones (opcional)
+    </p>
+
+    <div class="grid sm:grid-cols-3 gap-4 mb-12">
+      <label class="relative block cursor-pointer">
+        <input type="checkbox" name="interes" value="Reuniones" form="nuevo-form" class="peer sr-only" />
+        <span class="pointer-events-none absolute top-4 right-4 z-10 flex items-center gap-1.5 opacity-0 scale-90 peer-checked:opacity-100 peer-checked:scale-100 transition-all duration-200">
+          <span class="flex items-center justify-center w-5 h-5 rounded-full bg-pdc-cyan text-black text-xs font-bold">✓</span>
+          <span class="font-body text-xs font-bold uppercase tracking-wide text-pdc-cyan">Me interesa</span>
+        </span>
+        <div class="h-full bg-pdc-dark border border-white/10 rounded-xl p-6 transition-colors peer-checked:border-pdc-cyan peer-checked:bg-pdc-cyan/5">
+          <span class="block font-display text-3xl text-pdc-magenta mb-2">01</span>
+          <h3 class="font-body font-bold uppercase text-sm tracking-wide mb-2">Reuniones</h3>
+          <p class="font-body text-white/60 text-sm leading-relaxed">
+            Nuestro servicio de cada domingo, donde toda la iglesia se reúne para adorar,
+            escuchar la Palabra y recibir de Dios en comunidad. Ven como estás, sin
+            compromiso, es el mejor lugar para empezar.
+          </p>
+        </div>
+      </label>
+
+      <label class="relative block cursor-pointer">
+        <input type="checkbox" name="interes" value="Células" form="nuevo-form" class="peer sr-only" />
+        <span class="pointer-events-none absolute top-4 right-4 z-10 flex items-center gap-1.5 opacity-0 scale-90 peer-checked:opacity-100 peer-checked:scale-100 transition-all duration-200">
+          <span class="flex items-center justify-center w-5 h-5 rounded-full bg-pdc-cyan text-black text-xs font-bold">✓</span>
+          <span class="font-body text-xs font-bold uppercase tracking-wide text-pdc-cyan">Me interesa</span>
+        </span>
+        <div class="h-full bg-pdc-dark border border-white/10 rounded-xl p-6 transition-colors peer-checked:border-pdc-cyan peer-checked:bg-pdc-cyan/5">
+          <span class="block font-display text-3xl text-pdc-magenta mb-2">02</span>
+          <h3 class="font-body font-bold uppercase text-sm tracking-wide mb-2">Células</h3>
+          <p class="font-body text-white/60 text-sm leading-relaxed">
+            Grupos pequeños (8 a 15 personas) que se reúnen cada semana en una casa para
+            vivir la fe de forma cercana: estudiar la Biblia, orar unos por otros y
+            construir amistades reales. La forma más fácil de sentirte en familia.
+          </p>
+        </div>
+      </label>
+
+      <label class="relative block cursor-pointer">
+        <input type="checkbox" name="interes" value="Discipulado" form="nuevo-form" class="peer sr-only" />
+        <span class="pointer-events-none absolute top-4 right-4 z-10 flex items-center gap-1.5 opacity-0 scale-90 peer-checked:opacity-100 peer-checked:scale-100 transition-all duration-200">
+          <span class="flex items-center justify-center w-5 h-5 rounded-full bg-pdc-cyan text-black text-xs font-bold">✓</span>
+          <span class="font-body text-xs font-bold uppercase tracking-wide text-pdc-cyan">Me interesa</span>
+        </span>
+        <div class="h-full bg-pdc-dark border border-white/10 rounded-xl p-6 transition-colors peer-checked:border-pdc-cyan peer-checked:bg-pdc-cyan/5">
+          <span class="block font-display text-3xl text-pdc-magenta mb-2">03</span>
+          <h3 class="font-body font-bold uppercase text-sm tracking-wide mb-2">Discipulado</h3>
+          <p class="font-body text-white/60 text-sm leading-relaxed">
+            Un acompañamiento personal para profundizar tu fe: enseñanza bíblica,
+            herramientas prácticas y mentoría uno a uno. No solo asistes, te transformas
+            y descubres tu lugar en la iglesia.
+          </p>
+        </div>
+      </label>
+    </div>
+
     <form id="nuevo-form" class="bg-pdc-dark border border-white/10 rounded-xl p-6 sm:p-8 flex flex-col gap-5">
       <div>
         <label for="nombre" class="block font-body font-semibold text-sm mb-2">Nombre</label>
@@ -84,6 +144,7 @@ import Header from '../../components/Header.astro';
       nombre: data.get('nombre'),
       celular: data.get('celular'),
       mensaje: data.get('mensaje'),
+      interes: data.getAll('interes').join(', '),
       website: data.get('website'),
     };
 
