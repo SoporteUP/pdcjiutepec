@@ -15,7 +15,7 @@ const lista = [...sermones]
   .sort((a, b) => b.fecha.localeCompare(a.fecha))
   .map((s) => ({
     ...s,
-    src: `/audio/${s.archivo}`,
+    src: `/audio/${s.archivo}${s.version ? `?v=${s.version}` : ''}`,
     fechaTexto: fmtLargo.format(new Date(`${s.fecha}T00:00:00Z`)),
   }));
 

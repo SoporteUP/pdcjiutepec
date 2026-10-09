@@ -8,6 +8,11 @@ export interface Sermon {
   predicador?: string;
   /** Nombre del archivo tal como está en el bucket de R2 (pdc-audios). */
   archivo: string;
+  /**
+   * Súbelo en 1 cada vez que reemplaces el archivo en R2 con el mismo nombre.
+   * Evita que la caché de Cloudflare (hasta 24 h) siga sirviendo el audio viejo.
+   */
+  version?: number;
 }
 
 // Para agregar un audio nuevo: sube el mp3 al bucket (scripts/subir-audio.ps1)
@@ -19,5 +24,6 @@ export const sermones: Sermon[] = [
     fecha: "2026-10-04",
     descripcion: "Reunión general del domingo 4 de octubre de 2026.",
     archivo: "servicio-2026-10-04.mp3",
+    version: 2, // v2: reemplazado por la versión normalizada desde el WAV de Reaper
   },
 ];
