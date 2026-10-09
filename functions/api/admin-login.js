@@ -4,12 +4,15 @@ export async function onRequestPost({ request, env }) {
   const form = await request.formData();
   const password = String(form.get('password') || '');
 
+  const next = String(form.get('next') || '');
+  const destino = /^\/admin\/[a-z0-9/_-]*$/i.test(next) ? next : '/admin/contactos';
+
   if (password && password === env.ADMIN_PASSWORD) {
     const token = await hashPassword(env.ADMIN_PASSWORD);
     return new Response(null, {
       status: 303,
       headers: {
-        Location: '/admin/contactos',
+        Location: destino,
         'Set-Cookie': `${ADMIN_COOKIE_NAME}=${encodeURIComponent(token)}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${60 * 60 * 24 * 7}`,
       },
     });
@@ -17,6 +20,6 @@ export async function onRequestPost({ request, env }) {
 
   return new Response(null, {
     status: 303,
-    headers: { Location: '/admin/login?error=1' },
+    headers: { Location: `/admin/login?error=1${destino === '/admin/contactos' ? '' : `&next=${encodeURIComponent(destino)}`}` },
   });
 }

@@ -64,9 +64,12 @@ export async function onRequestGet({ env }) {
   <div class="wrap">
     <div class="header">
       <h1>Contactos Recibidos</h1>
-      <form method="POST" action="/api/admin-logout">
-        <button type="submit">Cerrar sesión</button>
-      </form>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <a href="/admin/audios" style="color:#22d3ee;font-size:14px;font-weight:600;text-decoration:none">Administrar sermones</a>
+        <form method="POST" action="/api/admin-logout">
+          <button type="submit">Cerrar sesión</button>
+        </form>
+      </div>
     </div>
     ${rows}
   </div>

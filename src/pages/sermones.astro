@@ -1,25 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Header from '../components/Header.astro';
-import { sermones } from '../data/sermones';
-
-const fmtLargo = new Intl.DateTimeFormat('es-MX', {
-  weekday: 'long',
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-  timeZone: 'UTC',
-});
-
-const lista = [...sermones]
-  .sort((a, b) => b.fecha.localeCompare(a.fecha))
-  .map((s) => ({
-    ...s,
-    src: `/audio/${s.archivo}${s.version ? `?v=${s.version}` : ''}`,
-    fechaTexto: fmtLargo.format(new Date(`${s.fecha}T00:00:00Z`)),
-  }));
-
-const reciente = lista[0];
 ---
 
 <Layout
@@ -34,12 +15,13 @@ const reciente = lista[0];
       Escucha los servicios y mensajes de Puerta del Cielo cuando quieras, donde quieras.
     </p>
 
-    {reciente ? (
-      <>
+    <p id="cargando" class="font-body text-white/40 text-center">Cargando mensajes…</p>
+    <p id="vacio" class="hidden font-body text-white/40 text-center italic">Próximamente subiremos los mensajes.</p>
+
         <!-- Reproductor -->
         <section
           id="player"
-          class="relative overflow-hidden rounded-3xl border border-white/10 bg-pdc-dark p-6 sm:p-10"
+          class="hidden relative overflow-hidden rounded-3xl border border-white/10 bg-pdc-dark p-6 sm:p-10"
           aria-label="Reproductor de audio"
         >
           <div class="pointer-events-none absolute -top-32 -left-32 h-80 w-80 rounded-full bg-pdc-cyan/20 blur-3xl"></div>
@@ -62,13 +44,13 @@ const reciente = lista[0];
             <!-- Info + controles -->
             <div class="w-full min-w-0 flex-1">
               <p id="now-date" class="font-body text-xs uppercase tracking-widest text-pdc-cyan mb-2 first-letter:uppercase">
-                {reciente.fechaTexto}
+                
               </p>
               <h2 id="now-title" class="font-display text-3xl sm:text-4xl uppercase leading-tight mb-1">
-                {reciente.titulo}
+                
               </h2>
               <p id="now-desc" class="font-body text-sm text-white/50 mb-5 min-h-[1.25rem]">
-                {reciente.descripcion ?? ''}
+                
               </p>
 
               <canvas id="viz" class="w-full h-16 sm:h-20 mb-4" aria-hidden="true"></canvas>
@@ -112,7 +94,7 @@ const reciente = lista[0];
                   </button>
                 </div>
 
-                <a id="download" href={reciente.src} download={reciente.archivo} class="ctl w-14 justify-center" aria-label="Descargar audio" title="Descargar">
+                <a id="download" href="#" class="ctl w-14 justify-center" aria-label="Descargar audio" title="Descargar">
                   <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></svg>
                 </a>
               </div>
@@ -123,46 +105,14 @@ const reciente = lista[0];
             </div>
           </div>
 
-          <audio id="audio" preload="metadata" src={reciente.src}></audio>
+          <audio id="audio" preload="metadata"></audio>
         </section>
 
         <!-- Lista -->
-        <section class="mt-14" aria-label="Todos los mensajes">
+        <section id="lista-sec" class="hidden mt-14" aria-label="Todos los mensajes">
           <h2 class="font-display text-2xl sm:text-3xl uppercase text-pdc-cyan mb-6">Todos los mensajes</h2>
-          <ul class="flex flex-col gap-3">
-            {lista.map((s, i) => (
-              <li>
-                <button
-                  type="button"
-                  class="track group w-full flex items-center gap-4 text-left rounded-2xl border border-white/10 bg-pdc-dark px-4 py-4 sm:px-5 hover:border-pdc-cyan/50 hover:bg-white/5 transition-colors"
-                  data-id={s.id}
-                  data-src={s.src}
-                  data-file={s.archivo}
-                  data-title={s.titulo}
-                  data-date={s.fechaTexto}
-                  data-desc={s.descripcion ?? ''}
-                  aria-current={i === 0 ? 'true' : undefined}
-                >
-                  <span class="track-icon relative shrink-0 h-11 w-11 rounded-full flex items-center justify-center bg-white/5 text-white/80 group-hover:text-pdc-cyan transition-colors">
-                    <svg class="icon-play h-5 w-5 translate-x-px" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-                    <span class="icon-eq hidden items-end gap-[3px] h-4">
-                      <i></i><i></i><i></i>
-                    </span>
-                  </span>
-                  <span class="min-w-0 flex-1">
-                    <span class="block font-body font-bold truncate">{s.titulo}</span>
-                    <span class="block font-body text-xs text-white/50 first-letter:uppercase">{s.fechaTexto}</span>
-                  </span>
-                  <span class="track-dur shrink-0 font-body text-xs text-white/40 tabular-nums"></span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <ul id="lista" class="flex flex-col gap-3"></ul>
         </section>
-      </>
-    ) : (
-      <p class="font-body text-white/40 text-center italic">Próximamente subiremos los mensajes.</p>
-    )}
 
     <p class="mt-14 text-center font-body text-sm text-white/50">
       ¿Prefieres ver los mensajes en video?
@@ -251,11 +201,66 @@ const reciente = lista[0];
   const speedBtn = $<HTMLButtonElement>('speed');
   const errorEl = $('error');
   const canvas = $<HTMLCanvasElement>('viz');
-  const tracks = Array.from(document.querySelectorAll<HTMLButtonElement>('.track'));
+  const listaEl = $('lista');
 
-  if (audio && tracks.length) init();
+  interface Sermon { id: number; titulo: string; fecha: string; descripcion: string | null; archivo: string; version: number }
+  const fmtLargo = new Intl.DateTimeFormat('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 
-  function init() {
+  const FILA = `
+    <span class="track-icon relative shrink-0 h-11 w-11 rounded-full flex items-center justify-center bg-white/5 text-white/80 group-hover:text-pdc-cyan transition-colors">
+      <svg class="icon-play h-5 w-5 translate-x-px" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      <span class="icon-eq hidden items-end gap-[3px] h-4"><i></i><i></i><i></i></span>
+    </span>
+    <span class="min-w-0 flex-1">
+      <span class="t-titulo block font-body font-bold truncate"></span>
+      <span class="t-fecha block font-body text-xs text-white/50 first-letter:uppercase"></span>
+    </span>
+    <span class="track-dur shrink-0 font-body text-xs text-white/40 tabular-nums"></span>`;
+
+  // Los textos vienen de la base de datos: se insertan con textContent, nunca como HTML.
+  function construirLista(sermones: Sermon[]) {
+    return sermones.map((s) => {
+      const fecha = fmtLargo.format(new Date(`${s.fecha}T00:00:00Z`));
+      const li = document.createElement('li');
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'track group w-full flex items-center gap-4 text-left rounded-2xl border border-white/10 bg-pdc-dark px-4 py-4 sm:px-5 hover:border-pdc-cyan/50 hover:bg-white/5 transition-colors';
+      btn.innerHTML = FILA;
+      btn.querySelector('.t-titulo')!.textContent = s.titulo;
+      btn.querySelector('.t-fecha')!.textContent = fecha;
+      btn.dataset.id = s.archivo;
+      btn.dataset.src = `/audio/${s.archivo}?v=${s.version}`;
+      btn.dataset.file = s.archivo;
+      btn.dataset.title = s.titulo;
+      btn.dataset.date = fecha;
+      btn.dataset.desc = s.descripcion ?? '';
+      li.append(btn);
+      listaEl.append(li);
+      return btn;
+    });
+  }
+
+  async function arrancar() {
+    let sermones: Sermon[] = [];
+    try {
+      const r = await fetch('/api/sermones', { cache: 'no-store' });
+      if (r.ok) sermones = await r.json();
+    } catch {
+      // sin conexión o sin datos: se muestra el mensaje de "próximamente"
+    }
+    $('cargando').classList.add('hidden');
+    if (!sermones.length) {
+      $('vacio').classList.remove('hidden');
+      return;
+    }
+    const tracks = construirLista(sermones);
+    player.classList.remove('hidden');
+    $('lista-sec').classList.remove('hidden');
+    init(tracks);
+  }
+  arrancar();
+
+  function init(tracks: HTMLButtonElement[]) {
     const SAVE_PREFIX = 'pdc-sermon-pos:';
     const SPEEDS = [1, 1.25, 1.5, 1.75, 2, 0.75];
     let speedIdx = 0;

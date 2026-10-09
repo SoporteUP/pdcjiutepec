@@ -1,0 +1,474 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Header from '../../components/Header.astro';
+---
+
+<Layout title="Administrar Sermones | Puerta del Cielo" noindex>
+  <Header />
+
+  <main class="pt-32 pb-24 px-6 max-w-3xl mx-auto">
+    <div class="flex flex-wrap items-center justify-between gap-4 mb-10">
+      <h1 class="font-display text-4xl sm:text-5xl uppercase">Sermones</h1>
+      <div class="flex gap-3">
+        <a href="/sermones" class="btn-sec">Ver página</a>
+        <a href="/admin/contactos" class="btn-sec">Contactos</a>
+      </div>
+    </div>
+
+    <!-- Formulario de subida -->
+    <form id="form" class="rounded-2xl border border-white/10 bg-pdc-dark p-6 sm:p-8 flex flex-col gap-5" novalidate>
+      <h2 class="font-body font-bold text-lg">Subir un audio nuevo</h2>
+
+      <label
+        id="drop"
+        for="archivo"
+        class="flex flex-col items-center justify-center gap-2 text-center rounded-xl border-2 border-dashed border-white/20 hover:border-pdc-cyan/60 transition-colors px-4 py-8 cursor-pointer"
+      >
+        <svg viewBox="0 0 24 24" class="h-8 w-8 text-pdc-cyan" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/></svg>
+        <span id="drop-texto" class="font-body text-sm text-white/70">Toca o arrastra aquí tu archivo <strong>.wav</strong> o <strong>.mp3</strong></span>
+        <input id="archivo" type="file" accept=".wav,.mp3,audio/wav,audio/x-wav,audio/mpeg" class="sr-only" />
+      </label>
+
+      <div class="grid gap-5 sm:grid-cols-[1fr_auto]">
+        <div>
+          <label for="titulo" class="lbl">Título</label>
+          <input id="titulo" type="text" maxlength="120" value="Servicio del domingo" class="campo" />
+        </div>
+        <div>
+          <label for="fecha" class="lbl">Fecha</label>
+          <input id="fecha" type="date" class="campo" />
+        </div>
+      </div>
+
+      <div>
+        <label for="descripcion" class="lbl">Descripción <span class="text-white/40 font-normal">(opcional)</span></label>
+        <textarea id="descripcion" rows="2" maxlength="500" class="campo resize-none" placeholder="Tema, predicador, pasaje…"></textarea>
+      </div>
+
+      <label id="norm-fila" class="flex items-start gap-3 cursor-pointer">
+        <input id="normalizar" type="checkbox" checked class="mt-1 h-4 w-4 accent-[#22d3ee]" />
+        <span class="font-body text-sm text-white/70">
+          <strong class="text-white">Normalizar el volumen</strong> (recomendado).
+          Parejo el volumen, reduzco la diferencia entre partes bajas y fuertes y evito que sature.
+          Solo aplica a WAV; un MP3 se sube tal cual.
+        </span>
+      </label>
+
+      <p id="error" class="hidden font-body text-sm text-pdc-magenta" role="alert"></p>
+
+      <div id="progreso" class="hidden flex flex-col gap-2" aria-live="polite">
+        <div class="flex justify-between font-body text-xs text-white/60">
+          <span id="prog-texto">Preparando…</span>
+          <span id="prog-pct" class="tabular-nums">0%</span>
+        </div>
+        <div class="h-2 rounded-full bg-white/10 overflow-hidden">
+          <div id="prog-barra" class="h-full w-0 rounded-full bg-gradient-to-r from-pdc-cyan to-pdc-magenta transition-[width] duration-300"></div>
+        </div>
+        <p class="font-body text-xs text-white/40">Deja esta pestaña abierta hasta que termine. En computadora tarda unos minutos por cada hora de audio.</p>
+      </div>
+
+      <div id="exito" class="hidden rounded-xl border border-pdc-teal/40 bg-pdc-teal/10 px-4 py-3 font-body text-sm text-white/80"></div>
+
+      <div class="flex flex-wrap gap-3">
+        <button id="enviar" type="submit" class="btn-main">Subir audio</button>
+        <button id="cancelar" type="button" class="btn-sec hidden">Cancelar</button>
+      </div>
+    </form>
+
+    <!-- Lista -->
+    <section class="mt-14">
+      <h2 class="font-display text-2xl uppercase text-pdc-cyan mb-5">Audios publicados</h2>
+      <ul id="lista" class="flex flex-col gap-3"></ul>
+      <p id="lista-vacia" class="hidden font-body text-sm text-white/40 italic">Todavía no hay audios publicados.</p>
+    </section>
+  </main>
+
+  <!-- Editar -->
+  <dialog id="dlg" class="m-auto w-[min(32rem,92vw)] rounded-2xl border border-white/10 bg-pdc-dark p-6 text-white backdrop:bg-black/70">
+    <form id="dlg-form" class="flex flex-col gap-4">
+      <h2 class="font-body font-bold text-lg">Editar audio</h2>
+      <div>
+        <label for="e-titulo" class="lbl">Título</label>
+        <input id="e-titulo" type="text" maxlength="120" class="campo" />
+      </div>
+      <div>
+        <label for="e-fecha" class="lbl">Fecha</label>
+        <input id="e-fecha" type="date" class="campo" />
+      </div>
+      <div>
+        <label for="e-desc" class="lbl">Descripción</label>
+        <textarea id="e-desc" rows="3" maxlength="500" class="campo resize-none"></textarea>
+      </div>
+      <p id="e-error" class="hidden font-body text-sm text-pdc-magenta"></p>
+      <div class="flex gap-3 justify-end">
+        <button type="button" id="e-cancelar" class="btn-sec">Cancelar</button>
+        <button type="submit" class="btn-main">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+</Layout>
+
+<style is:global>
+  .lbl { display: block; font-family: Inter, sans-serif; font-weight: 600; font-size: 0.85rem; margin-bottom: 0.4rem; }
+  .campo {
+    width: 100%; background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 0.6rem; padding: 0.7rem 0.9rem; font-size: 0.9rem; color: #fff; font-family: Inter, sans-serif;
+    color-scheme: dark;
+  }
+  .campo:focus { outline: none; border-color: #22d3ee; }
+  .btn-main {
+    background: linear-gradient(to right, #22d3ee, #a855f7, #e879f9); color: #fff; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.8rem; padding: 0.85rem 1.8rem;
+    border-radius: 999px; border: 0; cursor: pointer; font-family: Inter, sans-serif;
+    transition: transform 0.15s, opacity 0.15s;
+  }
+  .btn-main:hover:not(:disabled) { transform: scale(1.04); }
+  .btn-main:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-sec {
+    background: transparent; border: 1px solid rgba(255, 255, 255, 0.2); color: rgba(255, 255, 255, 0.75);
+    font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.6rem 1.1rem;
+    border-radius: 999px; cursor: pointer; font-family: Inter, sans-serif; font-weight: 600;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .btn-sec:hover { border-color: #e879f9; color: #e879f9; }
+  #drop.arrastrando { border-color: #22d3ee; background: rgba(34, 211, 238, 0.06); }
+  #drop:focus-within { border-color: #22d3ee; }
+</style>
+
+<script>
+  /* ---------- utilidades ---------- */
+  const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+  const PARTE = 8 * 1024 * 1024;
+
+  const form = $<HTMLFormElement>('form');
+  const archivoEl = $<HTMLInputElement>('archivo');
+  const dropEl = $('drop');
+  const dropTexto = $('drop-texto');
+  const tituloEl = $<HTMLInputElement>('titulo');
+  const fechaEl = $<HTMLInputElement>('fecha');
+  const descEl = $<HTMLTextAreaElement>('descripcion');
+  const normEl = $<HTMLInputElement>('normalizar');
+  const errorEl = $('error');
+  const progEl = $('progreso');
+  const progTexto = $('prog-texto');
+  const progPct = $('prog-pct');
+  const progBarra = $('prog-barra');
+  const exitoEl = $('exito');
+  const enviarBtn = $<HTMLButtonElement>('enviar');
+  const cancelarBtn = $<HTMLButtonElement>('cancelar');
+  const listaEl = $('lista');
+  const listaVacia = $('lista-vacia');
+
+  const fmtMB = (b: number) => `${(b / 1024 / 1024).toFixed(1)} MB`;
+  const fmtDur = (s: number) => {
+    if (s < 60) return `${Math.round(s)} s`;
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return h ? `${h} h ${m} min` : `${m} min`;
+  };
+
+  // Fecha por defecto: el domingo más reciente (hoy, si es domingo).
+  {
+    const d = new Date();
+    d.setDate(d.getDate() - d.getDay());
+    fechaEl.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  /* ---------- selección de archivo ---------- */
+  let archivo: File | null = null;
+
+  function elegir(f: File | null) {
+    archivo = f;
+    exitoEl.classList.add('hidden');
+    errorEl.classList.add('hidden');
+    if (!f) {
+      dropTexto.innerHTML = 'Toca o arrastra aquí tu archivo <strong>.wav</strong> o <strong>.mp3</strong>';
+      return;
+    }
+    const esWav = /\.wav$/i.test(f.name);
+    dropTexto.textContent = `${f.name} — ${fmtMB(f.size)}`;
+    normEl.disabled = !esWav;
+    (normEl.closest('label') as HTMLElement).style.opacity = esWav ? '1' : '0.5';
+  }
+  archivoEl.addEventListener('change', () => elegir(archivoEl.files?.[0] ?? null));
+  ['dragenter', 'dragover'].forEach((ev) =>
+    dropEl.addEventListener(ev, (e) => { e.preventDefault(); dropEl.classList.add('arrastrando'); })
+  );
+  ['dragleave', 'drop'].forEach((ev) =>
+    dropEl.addEventListener(ev, (e) => { e.preventDefault(); dropEl.classList.remove('arrastrando'); })
+  );
+  dropEl.addEventListener('drop', (e) => {
+    const f = (e as DragEvent).dataTransfer?.files?.[0];
+    if (f) elegir(f);
+  });
+
+  /* ---------- subida ---------- */
+  let ocupado = false;
+  let cancelado = false;
+  let worker: Worker | null = null;
+  let subida: { key: string; uploadId: string } | null = null;
+
+  window.addEventListener('beforeunload', (e) => {
+    if (ocupado) { e.preventDefault(); e.returnValue = ''; }
+  });
+
+  function mostrarError(msg: string) {
+    errorEl.textContent = msg;
+    errorEl.classList.remove('hidden');
+  }
+
+  function progreso(texto: string, pct: number) {
+    progTexto.textContent = texto;
+    const p = Math.max(0, Math.min(100, Math.round(pct)));
+    progPct.textContent = `${p}%`;
+    progBarra.style.width = `${p}%`;
+  }
+
+  function bloquear(si: boolean) {
+    ocupado = si;
+    enviarBtn.disabled = si;
+    cancelarBtn.classList.toggle('hidden', !si);
+    progEl.classList.toggle('hidden', !si);
+    [archivoEl, tituloEl, fechaEl, descEl, normEl].forEach((el) => (el.disabled = si));
+    if (!si && archivo) normEl.disabled = !/\.wav$/i.test(archivo.name);
+  }
+
+  function procesarWav(f: File, normalizar: boolean) {
+    return new Promise<{ mp3: Uint8Array[]; segundos: number; lufsOriginal: number | null; gananciaDb: number }>((resolve, reject) => {
+      worker = new Worker(new URL('../../lib/audio/procesar.worker.ts', import.meta.url), { type: 'module' });
+      worker.onmessage = (e) => {
+        const m = e.data;
+        if (m.tipo === 'progreso') {
+          if (m.fase === 'analizando') progreso('Analizando el volumen…', m.pct * 25);
+          else progreso('Convirtiendo a MP3…', (normalizar ? 25 : 0) + m.pct * (normalizar ? 55 : 75));
+        } else if (m.tipo === 'listo') {
+          worker?.terminate(); worker = null;
+          resolve(m);
+        } else if (m.tipo === 'error') {
+          worker?.terminate(); worker = null;
+          reject(new Error(m.mensaje));
+        }
+      };
+      worker.onerror = () => { worker?.terminate(); worker = null; reject(new Error('No se pudo procesar el audio en este navegador.')); };
+      worker.postMessage({ file: f, normalizar });
+    });
+  }
+
+  async function api(url: string, init: RequestInit) {
+    const r = await fetch(url, init);
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok || data.ok === false) throw new Error(data.error || `Error ${r.status}`);
+    return data;
+  }
+
+  async function subirPartes(blob: Blob, datos: object, base: number, peso: number) {
+    const ini = await api('/admin/api/subida/iniciar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(datos),
+    });
+    subida = { key: ini.key, uploadId: ini.uploadId };
+
+    const total = Math.ceil(blob.size / PARTE);
+    const partes: { partNumber: number; etag: string }[] = [];
+    for (let n = 1; n <= total; n++) {
+      if (cancelado) throw new Error('cancelado');
+      const trozo = blob.slice((n - 1) * PARTE, n * PARTE);
+      let ultimo: unknown;
+      for (let intento = 1; intento <= 3; intento++) {
+        try {
+          const p = await api(`/admin/api/subida/parte?key=${encodeURIComponent(ini.key)}&uploadId=${encodeURIComponent(ini.uploadId)}&n=${n}`, {
+            method: 'PUT',
+            body: trozo,
+          });
+          partes.push({ partNumber: p.partNumber, etag: p.etag });
+          ultimo = null;
+          break;
+        } catch (e) { ultimo = e; await new Promise((r) => setTimeout(r, 1000 * intento)); }
+      }
+      if (ultimo) throw ultimo;
+      progreso(`Subiendo… (${n} de ${total})`, base + (n / total) * peso);
+    }
+
+    return api('/admin/api/subida/completar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...datos, key: ini.key, uploadId: ini.uploadId, parts: partes }),
+    });
+  }
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errorEl.classList.add('hidden');
+    exitoEl.classList.add('hidden');
+
+    if (!archivo) return mostrarError('Elige primero un archivo de audio.');
+    const esWav = /\.wav$/i.test(archivo.name);
+    const esMp3 = /\.mp3$/i.test(archivo.name);
+    if (!esWav && !esMp3) return mostrarError('El archivo debe ser .wav o .mp3.');
+    if (!tituloEl.value.trim()) return mostrarError('Escribe un título.');
+    if (!fechaEl.value) return mostrarError('Elige la fecha.');
+
+    const datos = { titulo: tituloEl.value.trim(), fecha: fechaEl.value, descripcion: descEl.value.trim() };
+    const normalizar = esWav && normEl.checked;
+    cancelado = false;
+    subida = null;
+    bloquear(true);
+    progreso(esWav ? 'Preparando…' : 'Subiendo…', 0);
+
+    try {
+      let blob: Blob;
+      let resumen = '';
+      let baseSubida = 0;
+      let pesoSubida = 100;
+
+      if (esWav) {
+        const r = await procesarWav(archivo, normalizar);
+        blob = new Blob(r.mp3 as BlobPart[], { type: 'audio/mpeg' });
+        baseSubida = normalizar ? 80 : 75;
+        pesoSubida = 100 - baseSubida;
+        resumen = `Duración ${fmtDur(r.segundos)}, ${fmtMB(blob.size)}.`;
+        if (normalizar && r.lufsOriginal !== null) {
+          const g = r.gananciaDb;
+          resumen += ` Volumen original ${r.lufsOriginal.toFixed(1)} LUFS, ajustado ${g >= 0 ? '+' : ''}${g.toFixed(1)} dB.`;
+        }
+      } else {
+        blob = archivo;
+        resumen = `${fmtMB(blob.size)} (MP3 subido tal cual).`;
+      }
+
+      await subirPartes(blob, datos, baseSubida, pesoSubida);
+      progreso('Listo', 100);
+
+      elegir(null);
+      archivoEl.value = '';
+      descEl.value = '';
+
+      exitoEl.innerHTML = '';
+      const strong = document.createElement('strong');
+      strong.textContent = 'Audio publicado. ';
+      exitoEl.append(strong, resumen + ' ');
+      const a = document.createElement('a');
+      a.href = '/sermones';
+      a.textContent = 'Ver en la página';
+      a.className = 'text-pdc-cyan underline';
+      exitoEl.append(a);
+      exitoEl.classList.remove('hidden');
+      cargarLista();
+    } catch (err) {
+      if (subida) {
+        fetch('/admin/api/subida/abortar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(subida),
+        }).catch(() => {});
+      }
+      if (!cancelado) mostrarError(err instanceof Error ? err.message : 'Ocurrió un error al subir el audio.');
+    } finally {
+      worker?.terminate(); worker = null;
+      bloquear(false);
+    }
+  });
+
+  cancelarBtn.addEventListener('click', () => {
+    cancelado = true;
+    worker?.terminate(); worker = null;
+    bloquear(false);
+    mostrarError('Subida cancelada.');
+    if (subida) {
+      fetch('/admin/api/subida/abortar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(subida),
+      }).catch(() => {});
+    }
+  });
+
+  /* ---------- lista, editar, eliminar ---------- */
+  interface Sermon { id: number; titulo: string; fecha: string; descripcion: string | null; archivo: string }
+  let sermones: Sermon[] = [];
+  const fmtFecha = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+
+  async function cargarLista() {
+    try {
+      sermones = await (await fetch('/api/sermones', { cache: 'no-store' })).json();
+    } catch {
+      sermones = [];
+    }
+    listaEl.innerHTML = '';
+    listaVacia.classList.toggle('hidden', sermones.length > 0);
+
+    for (const s of sermones) {
+      const li = document.createElement('li');
+      li.className = 'flex flex-wrap items-center gap-3 rounded-xl border border-white/10 bg-pdc-dark px-4 py-3';
+
+      const info = document.createElement('div');
+      info.className = 'min-w-0 flex-1';
+      const t = document.createElement('p');
+      t.className = 'font-body font-bold truncate';
+      t.textContent = s.titulo;
+      const f = document.createElement('p');
+      f.className = 'font-body text-xs text-white/50';
+      f.textContent = `${fmtFecha.format(new Date(`${s.fecha}T00:00:00Z`))} · ${s.archivo}`;
+      info.append(t, f);
+
+      const editar = document.createElement('button');
+      editar.type = 'button';
+      editar.className = 'btn-sec';
+      editar.textContent = 'Editar';
+      editar.addEventListener('click', () => abrirEditar(s));
+
+      const borrar = document.createElement('button');
+      borrar.type = 'button';
+      borrar.className = 'btn-sec';
+      borrar.textContent = 'Eliminar';
+      borrar.addEventListener('click', async () => {
+        if (!confirm(`¿Eliminar "${s.titulo}"? Se borra también el audio y no se puede deshacer.`)) return;
+        try {
+          await api(`/admin/api/sermones/${s.id}`, { method: 'DELETE' });
+          cargarLista();
+        } catch (err) {
+          alert(err instanceof Error ? err.message : 'No se pudo eliminar.');
+        }
+      });
+
+      li.append(info, editar, borrar);
+      listaEl.append(li);
+    }
+  }
+
+  const dlg = $<HTMLDialogElement>('dlg');
+  const eTitulo = $<HTMLInputElement>('e-titulo');
+  const eFecha = $<HTMLInputElement>('e-fecha');
+  const eDesc = $<HTMLTextAreaElement>('e-desc');
+  const eError = $('e-error');
+  let editando: Sermon | null = null;
+
+  function abrirEditar(s: Sermon) {
+    editando = s;
+    eTitulo.value = s.titulo;
+    eFecha.value = s.fecha;
+    eDesc.value = s.descripcion ?? '';
+    eError.classList.add('hidden');
+    dlg.showModal();
+  }
+  $('e-cancelar').addEventListener('click', () => dlg.close());
+  $('dlg-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!editando) return;
+    try {
+      await api(`/admin/api/sermones/${editando.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ titulo: eTitulo.value, fecha: eFecha.value, descripcion: eDesc.value }),
+      });
+      dlg.close();
+      cargarLista();
+    } catch (err) {
+      eError.textContent = err instanceof Error ? err.message : 'No se pudo guardar.';
+      eError.classList.remove('hidden');
+    }
+  });
+
+  cargarLista();
+</script>

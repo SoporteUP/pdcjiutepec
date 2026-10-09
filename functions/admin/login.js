@@ -1,6 +1,8 @@
 export async function onRequestGet({ request }) {
   const url = new URL(request.url);
   const showError = url.searchParams.get('error') === '1';
+  const next = url.searchParams.get('next') ?? '';
+  const nextSeguro = /^\/admin\/[a-z0-9/_-]*$/i.test(next) ? next : '';
 
   const html = `<!doctype html>
 <html lang="es">
@@ -33,6 +35,8 @@ export async function onRequestGet({ request }) {
   <form method="POST" action="/api/admin-login">
     <h1>Acceso Admin</h1>
     ${showError ? '<p class="error">Contraseña incorrecta.</p>' : ''}
+    <input type="hidden" name="next" value="${nextSeguro}">
+
     <div>
       <label for="password">Contraseña</label>
       <input type="password" id="password" name="password" required>
