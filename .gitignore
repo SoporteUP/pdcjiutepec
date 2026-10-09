@@ -25,3 +25,6 @@ pnpm-debug.log*
 
 # jetbrains setting folder
 .idea/
+
+# audios de prueba locales (los reales viven en R2)
+public/audio/

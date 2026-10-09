@@ -1,0 +1,539 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import { sermones } from '../data/sermones';
+
+const fmtLargo = new Intl.DateTimeFormat('es-MX', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
+
+const lista = [...sermones]
+  .sort((a, b) => b.fecha.localeCompare(a.fecha))
+  .map((s) => ({
+    ...s,
+    src: `/audio/${s.archivo}`,
+    fechaTexto: fmtLargo.format(new Date(`${s.fecha}T00:00:00Z`)),
+  }));
+
+const reciente = lista[0];
+---
+
+<Layout
+  title="Sermones y Mensajes en Audio | Iglesia Puerta del Cielo Jiutepec"
+  description="Escucha los servicios y mensajes de la Iglesia Cristiana Puerta del Cielo en Jiutepec, Morelos. Audios de nuestras reuniones para escuchar cuando quieras."
+>
+  <Header />
+
+  <main class="pt-32 pb-24 px-6 max-w-5xl mx-auto">
+    <h1 class="font-display text-5xl sm:text-6xl uppercase text-center mb-4">Sermones</h1>
+    <p class="font-body text-white/60 text-center max-w-xl mx-auto mb-12">
+      Escucha los servicios y mensajes de Puerta del Cielo cuando quieras, donde quieras.
+    </p>
+
+    {reciente ? (
+      <>
+        <!-- Reproductor -->
+        <section
+          id="player"
+          class="relative overflow-hidden rounded-3xl border border-white/10 bg-pdc-dark p-6 sm:p-10"
+          aria-label="Reproductor de audio"
+        >
+          <div class="pointer-events-none absolute -top-32 -left-32 h-80 w-80 rounded-full bg-pdc-cyan/20 blur-3xl"></div>
+          <div class="pointer-events-none absolute -bottom-32 -right-32 h-80 w-80 rounded-full bg-pdc-magenta/20 blur-3xl"></div>
+
+          <div class="relative flex flex-col md:flex-row items-center gap-8 md:gap-10">
+            <!-- Disco -->
+            <div class="relative shrink-0 h-44 w-44 sm:h-56 sm:w-56">
+              <div id="disc-glow" class="absolute inset-0 rounded-full bg-gradient-to-tr from-pdc-cyan via-pdc-purple to-pdc-magenta opacity-40 blur-xl transition-opacity duration-500"></div>
+              <div id="disc" class="disc relative h-full w-full rounded-full p-[5px] bg-[conic-gradient(from_0deg,#22d3ee,#a855f7,#e879f9,#2dd4bf,#22d3ee)]">
+                <div class="relative h-full w-full rounded-full bg-pdc-black flex items-center justify-center overflow-hidden">
+                  <div class="absolute inset-3 rounded-full border border-white/10"></div>
+                  <div class="absolute inset-8 rounded-full border border-white/5"></div>
+                  <img src="/images/logo-white.png" alt="" class="relative h-20 sm:h-24 w-auto opacity-90" />
+                  <div class="absolute h-4 w-4 rounded-full bg-pdc-dark border border-white/20"></div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Info + controles -->
+            <div class="w-full min-w-0 flex-1">
+              <p id="now-date" class="font-body text-xs uppercase tracking-widest text-pdc-cyan mb-2 first-letter:uppercase">
+                {reciente.fechaTexto}
+              </p>
+              <h2 id="now-title" class="font-display text-3xl sm:text-4xl uppercase leading-tight mb-1">
+                {reciente.titulo}
+              </h2>
+              <p id="now-desc" class="font-body text-sm text-white/50 mb-5 min-h-[1.25rem]">
+                {reciente.descripcion ?? ''}
+              </p>
+
+              <canvas id="viz" class="w-full h-16 sm:h-20 mb-4" aria-hidden="true"></canvas>
+
+              <!-- Progreso -->
+              <input
+                id="seek"
+                type="range"
+                min="0"
+                max="1000"
+                value="0"
+                step="1"
+                aria-label="Progreso"
+                class="seek w-full"
+              />
+              <div class="flex justify-between font-body text-xs text-white/50 mt-1 mb-4 tabular-nums">
+                <span id="t-cur">0:00</span>
+                <span id="t-dur">--:--</span>
+              </div>
+
+              <!-- Controles -->
+              <div class="flex items-center justify-between gap-2">
+                <button id="speed" type="button" class="ctl-text w-14" aria-label="Velocidad de reproducción">1x</button>
+
+                <div class="flex items-center gap-3 sm:gap-5">
+                  <button id="back" type="button" class="ctl" aria-label="Retroceder 15 segundos">
+                    <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><text x="12" y="15.5" font-size="7.5" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none">15</text></svg>
+                  </button>
+                  <button
+                    id="play"
+                    type="button"
+                    class="h-16 w-16 rounded-full bg-gradient-to-br from-pdc-cyan via-pdc-purple to-pdc-magenta text-white flex items-center justify-center shadow-lg shadow-pdc-purple/40 hover:scale-105 active:scale-95 transition-transform"
+                    aria-label="Reproducir"
+                  >
+                    <svg id="ico-play" viewBox="0 0 24 24" class="h-7 w-7 translate-x-0.5" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    <svg id="ico-pause" viewBox="0 0 24 24" class="h-7 w-7 hidden" fill="currentColor"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
+                    <svg id="ico-load" viewBox="0 0 24 24" class="h-7 w-7 hidden animate-spin" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M12 3a9 9 0 1 0 9 9" /></svg>
+                  </button>
+                  <button id="fwd" type="button" class="ctl" aria-label="Adelantar 15 segundos">
+                    <svg viewBox="0 0 24 24" class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/><text x="12" y="15.5" font-size="7.5" font-weight="700" text-anchor="middle" fill="currentColor" stroke="none">15</text></svg>
+                  </button>
+                </div>
+
+                <a id="download" href={reciente.src} download={reciente.archivo} class="ctl w-14 justify-center" aria-label="Descargar audio" title="Descargar">
+                  <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="m7 11 5 5 5-5"/><path d="M5 20h14"/></svg>
+                </a>
+              </div>
+
+              <p id="error" class="hidden mt-4 text-center font-body text-sm text-pdc-magenta">
+                No se pudo cargar el audio. Intenta de nuevo en unos minutos.
+              </p>
+            </div>
+          </div>
+
+          <audio id="audio" preload="metadata" src={reciente.src}></audio>
+        </section>
+
+        <!-- Lista -->
+        <section class="mt-14" aria-label="Todos los mensajes">
+          <h2 class="font-display text-2xl sm:text-3xl uppercase text-pdc-cyan mb-6">Todos los mensajes</h2>
+          <ul class="flex flex-col gap-3">
+            {lista.map((s, i) => (
+              <li>
+                <button
+                  type="button"
+                  class="track group w-full flex items-center gap-4 text-left rounded-2xl border border-white/10 bg-pdc-dark px-4 py-4 sm:px-5 hover:border-pdc-cyan/50 hover:bg-white/5 transition-colors"
+                  data-id={s.id}
+                  data-src={s.src}
+                  data-file={s.archivo}
+                  data-title={s.titulo}
+                  data-date={s.fechaTexto}
+                  data-desc={s.descripcion ?? ''}
+                  aria-current={i === 0 ? 'true' : undefined}
+                >
+                  <span class="track-icon relative shrink-0 h-11 w-11 rounded-full flex items-center justify-center bg-white/5 text-white/80 group-hover:text-pdc-cyan transition-colors">
+                    <svg class="icon-play h-5 w-5 translate-x-px" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                    <span class="icon-eq hidden items-end gap-[3px] h-4">
+                      <i></i><i></i><i></i>
+                    </span>
+                  </span>
+                  <span class="min-w-0 flex-1">
+                    <span class="block font-body font-bold truncate">{s.titulo}</span>
+                    <span class="block font-body text-xs text-white/50 first-letter:uppercase">{s.fechaTexto}</span>
+                  </span>
+                  <span class="track-dur shrink-0 font-body text-xs text-white/40 tabular-nums"></span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      </>
+    ) : (
+      <p class="font-body text-white/40 text-center italic">Próximamente subiremos los mensajes.</p>
+    )}
+
+    <p class="mt-14 text-center font-body text-sm text-white/50">
+      ¿Prefieres ver los mensajes en video?
+      <a
+        href="https://www.youtube.com/@pdccivac"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-pdc-cyan hover:text-pdc-magenta transition-colors font-semibold"
+      >Visita nuestro canal de YouTube</a>.
+    </p>
+  </main>
+</Layout>
+
+<style is:global>
+  /* Disco giratorio */
+  .disc { animation: spin-slow 12s linear infinite; animation-play-state: paused; }
+  .is-playing .disc { animation-play-state: running; }
+  #disc-glow { opacity: 0.25; }
+  .is-playing #disc-glow { opacity: 0.6; }
+
+  /* Barra de progreso */
+  .seek {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 999px;
+    cursor: pointer;
+    background: linear-gradient(to right, #22d3ee, #e879f9) 0 / var(--p, 0%) 100% no-repeat, rgba(255, 255, 255, 0.12);
+  }
+  .seek::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    height: 16px; width: 16px; border-radius: 50%;
+    background: #fff; border: 0;
+    box-shadow: 0 0 0 4px rgba(232, 121, 249, 0.35);
+    transition: transform 0.15s;
+  }
+  .seek:active::-webkit-slider-thumb { transform: scale(1.25); }
+  .seek::-moz-range-thumb {
+    height: 16px; width: 16px; border-radius: 50%;
+    background: #fff; border: 0;
+    box-shadow: 0 0 0 4px rgba(232, 121, 249, 0.35);
+  }
+  .seek:focus-visible { outline: 2px solid #22d3ee; outline-offset: 4px; }
+
+  /* Botones secundarios */
+  .ctl, .ctl-text {
+    display: inline-flex; align-items: center; justify-content: center;
+    height: 2.75rem; min-width: 2.75rem; border-radius: 999px;
+    color: rgba(255, 255, 255, 0.75);
+    transition: color 0.15s, background-color 0.15s;
+  }
+  .ctl:hover, .ctl-text:hover { color: #22d3ee; background: rgba(255, 255, 255, 0.06); }
+  .ctl-text { font-family: Inter, sans-serif; font-weight: 700; font-size: 0.8rem; }
+  #player button:focus-visible, #player a:focus-visible, .track:focus-visible { outline: 2px solid #22d3ee; outline-offset: 2px; }
+
+  /* Lista */
+  .track[aria-current='true'] { border-color: rgba(34, 211, 238, 0.6); background: rgba(34, 211, 238, 0.06); }
+  .track[aria-current='true'] .track-icon { background: linear-gradient(135deg, #22d3ee, #a855f7); color: #fff; }
+  .track[aria-current='true'].is-playing .icon-play { display: none; }
+  .track[aria-current='true'].is-playing .icon-eq { display: inline-flex; }
+  .icon-eq i {
+    display: block; width: 3px; height: 100%; background: currentColor; border-radius: 2px;
+    transform-origin: bottom; animation: eq 0.9s ease-in-out infinite;
+  }
+  .icon-eq i:nth-child(2) { animation-delay: -0.3s; }
+  .icon-eq i:nth-child(3) { animation-delay: -0.6s; }
+  @keyframes eq { 0%, 100% { transform: scaleY(0.3); } 50% { transform: scaleY(1); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    .disc, .icon-eq i { animation: none; }
+  }
+</style>
+
+<script>
+  const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
+
+  const audio = $<HTMLAudioElement>('audio');
+  const player = $<HTMLElement>('player');
+  const seek = $<HTMLInputElement>('seek');
+  const playBtn = $<HTMLButtonElement>('play');
+  const icoPlay = $('ico-play');
+  const icoPause = $('ico-pause');
+  const icoLoad = $('ico-load');
+  const tCur = $('t-cur');
+  const tDur = $('t-dur');
+  const speedBtn = $<HTMLButtonElement>('speed');
+  const errorEl = $('error');
+  const canvas = $<HTMLCanvasElement>('viz');
+  const tracks = Array.from(document.querySelectorAll<HTMLButtonElement>('.track'));
+
+  if (audio && tracks.length) init();
+
+  function init() {
+    const SAVE_PREFIX = 'pdc-sermon-pos:';
+    const SPEEDS = [1, 1.25, 1.5, 1.75, 2, 0.75];
+    let speedIdx = 0;
+    let current = tracks[0];
+    let seeking = false;
+    let lastSave = 0;
+    let resumeAt = 0;
+
+    /* ---------- utilidades ---------- */
+    const fmt = (s: number) => {
+      if (!isFinite(s) || s < 0) return '--:--';
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      const sec = Math.floor(s % 60).toString().padStart(2, '0');
+      return h > 0 ? `${h}:${m.toString().padStart(2, '0')}:${sec}` : `${m}:${sec}`;
+    };
+    const store = {
+      get: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } },
+      set: (k: string, v: string) => { try { localStorage.setItem(k, v); } catch {} },
+      del: (k: string) => { try { localStorage.removeItem(k); } catch {} },
+    };
+
+    /* ---------- estado visual ---------- */
+    function setState(state: 'idle' | 'loading' | 'playing') {
+      icoPlay.classList.toggle('hidden', state !== 'idle');
+      icoPause.classList.toggle('hidden', state !== 'playing');
+      icoLoad.classList.toggle('hidden', state !== 'loading');
+      playBtn.setAttribute('aria-label', state === 'playing' ? 'Pausar' : 'Reproducir');
+      const playing = state === 'playing';
+      player.classList.toggle('is-playing', playing);
+      current.classList.toggle('is-playing', playing);
+      startViz(); // al pausar, las barras bajan solas y el ciclo se detiene
+      if ('mediaSession' in navigator) navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
+    }
+
+    function paintProgress() {
+      const d = audio.duration;
+      const pct = d > 0 ? (audio.currentTime / d) * 100 : 0;
+      if (!seeking) seek.value = String(Math.round(pct * 10));
+      seek.style.setProperty('--p', `${pct}%`);
+      tCur.textContent = fmt(audio.currentTime);
+    }
+
+    /* ---------- cargar un mensaje ---------- */
+    function load(btn: HTMLButtonElement, autoplay: boolean) {
+      tracks.forEach((t) => {
+        t.removeAttribute('aria-current');
+        t.classList.remove('is-playing');
+      });
+      btn.setAttribute('aria-current', 'true');
+      current = btn;
+      errorEl.classList.add('hidden');
+
+      $('now-title').textContent = btn.dataset.title ?? '';
+      $('now-date').textContent = btn.dataset.date ?? '';
+      $('now-desc').textContent = btn.dataset.desc ?? '';
+      const dl = $<HTMLAnchorElement>('download');
+      dl.href = btn.dataset.src ?? '';
+      dl.download = btn.dataset.file ?? '';
+
+      const saved = parseFloat(store.get(SAVE_PREFIX + btn.dataset.id) ?? '0');
+      resumeAt = saved > 5 ? saved : 0;
+
+      audio.src = btn.dataset.src ?? '';
+      audio.playbackRate = SPEEDS[speedIdx];
+      tDur.textContent = '--:--';
+      paintProgress();
+      setupMediaSession();
+
+      if (autoplay) play();
+      else setState('idle');
+    }
+
+    async function play() {
+      ensureAudioGraph();
+      try {
+        setState('loading');
+        await audio.play();
+      } catch (e) {
+        if ((e as DOMException)?.name !== 'AbortError') setState('idle');
+      }
+    }
+
+    function toggle() {
+      if (audio.paused) play();
+      else audio.pause();
+    }
+
+    /* ---------- eventos del audio ---------- */
+    audio.addEventListener('loadedmetadata', () => {
+      tDur.textContent = fmt(audio.duration);
+      if (resumeAt > 0 && resumeAt < audio.duration - 10) audio.currentTime = resumeAt;
+      resumeAt = 0;
+      const dur = current.querySelector('.track-dur');
+      if (dur) dur.textContent = fmt(audio.duration);
+    });
+    audio.addEventListener('playing', () => setState('playing'));
+    audio.addEventListener('pause', () => {
+      setState('idle');
+      saveProgress(true);
+    });
+    audio.addEventListener('waiting', () => { if (!audio.paused) setState('loading'); });
+    audio.addEventListener('timeupdate', () => {
+      paintProgress();
+      saveProgress(false);
+    });
+    audio.addEventListener('ratechange', () => {
+      speedBtn.textContent = `${audio.playbackRate}x`;
+    });
+    audio.addEventListener('error', () => {
+      setState('idle');
+      errorEl.classList.remove('hidden');
+    });
+    audio.addEventListener('ended', () => {
+      store.del(SAVE_PREFIX + current.dataset.id);
+      const next = tracks[tracks.indexOf(current) + 1];
+      if (next) load(next, true);
+      else setState('idle');
+    });
+
+    function saveProgress(force: boolean) {
+      const now = Date.now();
+      if (!force && now - lastSave < 4000) return;
+      lastSave = now;
+      if (audio.currentTime > 5 && !audio.ended) {
+        store.set(SAVE_PREFIX + current.dataset.id, String(Math.floor(audio.currentTime)));
+      }
+    }
+
+    /* ---------- controles ---------- */
+    playBtn.addEventListener('click', toggle);
+    $('back').addEventListener('click', () => (audio.currentTime = Math.max(0, audio.currentTime - 15)));
+    $('fwd').addEventListener('click', () => (audio.currentTime = Math.min(audio.duration || Infinity, audio.currentTime + 15)));
+    speedBtn.addEventListener('click', () => {
+      speedIdx = (speedIdx + 1) % SPEEDS.length;
+      audio.playbackRate = SPEEDS[speedIdx];
+    });
+
+    seek.addEventListener('input', () => {
+      seeking = true;
+      const t = (Number(seek.value) / 1000) * (audio.duration || 0);
+      seek.style.setProperty('--p', `${Number(seek.value) / 10}%`);
+      tCur.textContent = fmt(t);
+    });
+    seek.addEventListener('change', () => {
+      if (audio.duration) audio.currentTime = (Number(seek.value) / 1000) * audio.duration;
+      seeking = false;
+    });
+
+    tracks.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (btn === current) toggle();
+        else load(btn, true);
+      });
+    });
+
+    document.addEventListener('keydown', (e) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === 'INPUT' || tag === 'BUTTON' || tag === 'A' || tag === 'TEXTAREA') return;
+      if (e.code === 'Space') { e.preventDefault(); toggle(); }
+      else if (e.code === 'ArrowLeft') audio.currentTime = Math.max(0, audio.currentTime - 15);
+      else if (e.code === 'ArrowRight') audio.currentTime += 15;
+    });
+
+    /* ---------- controles del teléfono / pantalla de bloqueo ---------- */
+    function setupMediaSession() {
+      if (!('mediaSession' in navigator)) return;
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: current.dataset.title ?? '',
+        artist: 'Iglesia Puerta del Cielo Jiutepec',
+        album: current.dataset.date ?? '',
+        artwork: [{ src: '/images/logo-color.png', sizes: '512x512', type: 'image/png' }],
+      });
+    }
+    if ('mediaSession' in navigator) {
+      const ms = navigator.mediaSession;
+      ms.setActionHandler('play', play);
+      ms.setActionHandler('pause', () => audio.pause());
+      ms.setActionHandler('seekbackward', () => (audio.currentTime = Math.max(0, audio.currentTime - 15)));
+      ms.setActionHandler('seekforward', () => (audio.currentTime += 15));
+      ms.setActionHandler('seekto', (d) => { if (d.seekTime != null) audio.currentTime = d.seekTime; });
+      ms.setActionHandler('previoustrack', () => { const p = tracks[tracks.indexOf(current) - 1]; if (p) load(p, true); });
+      ms.setActionHandler('nexttrack', () => { const n = tracks[tracks.indexOf(current) + 1]; if (n) load(n, true); });
+    }
+
+    /* ---------- visualizador ---------- */
+    const ctx2d = canvas.getContext('2d')!;
+    const BARS = 48;
+    const levels = new Array(BARS).fill(0);
+    let analyser: AnalyserNode | null = null;
+    let freq: Uint8Array<ArrayBuffer> | null = null;
+    let audioCtx: AudioContext | null = null;
+    let raf = 0;
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function ensureAudioGraph() {
+      if (audioCtx) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        return;
+      }
+      try {
+        audioCtx = new AudioContext();
+        const src = audioCtx.createMediaElementSource(audio);
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.82;
+        src.connect(analyser);
+        analyser.connect(audioCtx.destination);
+        freq = new Uint8Array(analyser.frequencyBinCount);
+      } catch {
+        analyser = null; // el audio sigue sonando, solo se anima sin datos reales
+      }
+    }
+
+    function resizeCanvas() {
+      const dpr = window.devicePixelRatio || 1;
+      const { clientWidth: w, clientHeight: h } = canvas;
+      canvas.width = w * dpr;
+      canvas.height = h * dpr;
+      ctx2d.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    new ResizeObserver(() => { resizeCanvas(); drawViz(); }).observe(canvas);
+
+    function drawViz() {
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
+      ctx2d.clearRect(0, 0, w, h);
+      if (w < BARS * 4) return; // aún sin tamaño (primer render u oculto)
+
+      const playing = !audio.paused;
+      if (analyser && freq && playing && !reduceMotion) {
+        analyser.getByteFrequencyData(freq);
+        // La voz vive en las frecuencias bajas y medias: usamos solo ese tramo.
+        const usable = Math.floor(freq.length * 0.3);
+        for (let i = 0; i < BARS; i++) {
+          const v = freq[Math.floor((i / BARS) * usable)] / 255;
+          levels[i] += (v - levels[i]) * 0.5;
+        }
+      } else if (playing && !reduceMotion) {
+        const t = performance.now() / 300; // sin análisis real: movimiento suave de relleno
+        for (let i = 0; i < BARS; i++) {
+          const v = 0.25 + 0.2 * Math.sin(t + i * 0.5) + 0.15 * Math.sin(t * 1.7 + i * 0.9);
+          levels[i] += (v - levels[i]) * 0.2;
+        }
+      } else {
+        for (let i = 0; i < BARS; i++) levels[i] *= 0.88;
+      }
+
+      const gap = 3;
+      const bw = (w - gap * (BARS - 1)) / BARS;
+      const grad = ctx2d.createLinearGradient(0, 0, w, 0);
+      grad.addColorStop(0, '#22d3ee');
+      grad.addColorStop(0.55, '#a855f7');
+      grad.addColorStop(1, '#e879f9');
+      ctx2d.fillStyle = grad;
+
+      for (let i = 0; i < BARS; i++) {
+        const bh = Math.max(3, levels[i] * h);
+        const x = i * (bw + gap);
+        ctx2d.beginPath();
+        ctx2d.roundRect(x, (h - bh) / 2, bw, bh, bw / 2);
+        ctx2d.fill();
+      }
+    }
+
+    function startViz() {
+      cancelAnimationFrame(raf);
+      const loop = () => {
+        drawViz();
+        const settled = audio.paused && levels.every((l) => l < 0.01);
+        if (!settled) raf = requestAnimationFrame(loop);
+      };
+      loop();
+    }
+
+    resizeCanvas();
+    drawViz();
+    setupMediaSession();
+    load(current, false);
+  }
+</script>

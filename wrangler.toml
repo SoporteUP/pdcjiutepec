@@ -7,3 +7,7 @@ compatibility_flags = ["nodejs_compat"]
 binding = "DB"
 database_name = "pdc-contactos"
 database_id = "fd95c56c-148f-4769-972d-9f0fad85ac58"
+
+[[r2_buckets]]
+binding = "AUDIOS"
+bucket_name = "pdc-audios"
