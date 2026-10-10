@@ -197,6 +197,7 @@ const { categoria, vacio = 'Próximamente subiremos los mensajes.' } = Astro.pro
     <span class="min-w-0 flex-1">
       <span class="t-titulo block font-body font-bold truncate"></span>
       <span class="t-fecha block font-body text-xs text-white/50 first-letter:uppercase"></span>
+      <span class="t-desc hidden font-body text-sm text-white/70 mt-1.5 line-clamp-2"></span>
     </span>
     <span class="track-dur shrink-0 font-body text-xs text-white/40 tabular-nums"></span>`;
 
@@ -211,6 +212,12 @@ const { categoria, vacio = 'Próximamente subiremos los mensajes.' } = Astro.pro
       btn.innerHTML = FILA;
       btn.querySelector('.t-titulo')!.textContent = s.titulo;
       btn.querySelector('.t-fecha')!.textContent = fecha;
+      if (s.descripcion) {
+        const desc = btn.querySelector('.t-desc')!;
+        desc.textContent = s.descripcion;
+        desc.classList.remove('hidden');
+        desc.classList.add('block');
+      }
       btn.dataset.id = s.archivo;
       btn.dataset.src = `/audio/${s.archivo}?v=${s.version}`;
       btn.dataset.file = s.archivo;
