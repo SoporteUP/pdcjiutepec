@@ -8,7 +8,6 @@ const navItems = [
       { label: "Nuevo en la Iglesia", href: "/iglesia/nuevo" },
       { label: "Células - Grupos de Contacto", href: "/iglesia/celulas" },
       { label: "Discipulado", href: "/iglesia/discipulado" },
-      { label: "Alabanza PDC", href: "/iglesia/alabanza" },
       { label: "Recursos", href: "/iglesia/recursos" },
       { label: "Contactos Recibidos", href: "/admin/login" },
       { label: "Administrar Sermones", href: "/admin/audios" },
@@ -17,6 +16,7 @@ const navItems = [
   { label: "Horarios", href: "#horarios" },
   { label: "Ubicación", href: "#ubicacion" },
   { label: "Quiénes Somos", href: "#quienes-somos" },
+  { label: "Alabanza", href: "/alabanza" },
   { label: "Sermones", href: "/sermones" },
   { label: "Contacto", href: "/iglesia/nuevo/" },
 ];
@@ -27,13 +27,13 @@ const navItems = [
     <!-- Logo -->
     <a href="/" class="flex items-center gap-3 shrink-0">
       <img src="/images/logo-white.png" alt="Puerta del Cielo" class="h-12 w-auto" />
-      <span class="font-display text-lg tracking-wide leading-none hidden sm:block">
+      <span class="font-display text-lg tracking-wide leading-none hidden sm:block lg:hidden xl:block">
         PUERTA<br /><span class="text-pdc-cyan">DEL CIELO</span>
       </span>
     </a>
 
     <!-- Desktop nav -->
-    <ul class="hidden lg:flex items-center gap-8 font-body font-semibold text-sm uppercase tracking-wide">
+    <ul class="hidden lg:flex items-center gap-5 xl:gap-8 font-body font-semibold text-[13px] xl:text-sm uppercase tracking-wide whitespace-nowrap">
       {navItems.map((item) => (
         <li class="relative group">
           <a

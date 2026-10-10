@@ -14,9 +14,9 @@ export async function onRequestPatch({ request, env, params }) {
   if (datos.error) return json({ ok: false, error: datos.error }, 400);
 
   const r = await env.DB.prepare(
-    'UPDATE sermones SET titulo = ?1, fecha = ?2, descripcion = ?3 WHERE id = ?4'
+    'UPDATE sermones SET titulo = ?1, fecha = ?2, descripcion = ?3, categoria = ?4 WHERE id = ?5'
   )
-    .bind(datos.titulo, datos.fecha, datos.descripcion || null, id)
+    .bind(datos.titulo, datos.fecha, datos.descripcion || null, datos.categoria, id)
     .run();
 
   if (!r.meta.changes) return json({ ok: false, error: 'No existe ese audio.' }, 404);

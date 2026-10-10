@@ -29,6 +29,15 @@ import Header from '../../components/Header.astro';
         <input id="archivo" type="file" accept=".wav,.mp3,audio/wav,audio/x-wav,audio/mpeg" class="sr-only" />
       </label>
 
+      <div>
+        <label for="categoria" class="lbl">Tipo</label>
+        <select id="categoria" class="campo">
+          <option value="predicacion">Predicación (voz)</option>
+          <option value="alabanza">Alabanza (música)</option>
+        </select>
+        <p id="categoria-nota" class="font-body text-xs text-white/40 mt-1.5"></p>
+      </div>
+
       <div class="grid gap-5 sm:grid-cols-[1fr_auto]">
         <div>
           <label for="titulo" class="lbl">Título</label>
@@ -49,8 +58,7 @@ import Header from '../../components/Header.astro';
         <input id="normalizar" type="checkbox" checked class="mt-1 h-4 w-4 accent-[#22d3ee]" />
         <span class="font-body text-sm text-white/70">
           <strong class="text-white">Normalizar el volumen</strong> (recomendado).
-          Parejo el volumen, reduzco la diferencia entre partes bajas y fuertes y evito que sature.
-          Solo aplica a WAV; un MP3 se sube tal cual.
+          Deja el volumen parejo y evita que sature. Solo aplica a WAV; un MP3 se sube tal cual.
         </span>
       </label>
 
@@ -90,6 +98,13 @@ import Header from '../../components/Header.astro';
       <div>
         <label for="e-titulo" class="lbl">Título</label>
         <input id="e-titulo" type="text" maxlength="120" class="campo" />
+      </div>
+      <div>
+        <label for="e-categoria" class="lbl">Tipo</label>
+        <select id="e-categoria" class="campo">
+          <option value="predicacion">Predicación</option>
+          <option value="alabanza">Alabanza</option>
+        </select>
       </div>
       <div>
         <label for="e-fecha" class="lbl">Fecha</label>
@@ -148,6 +163,8 @@ import Header from '../../components/Header.astro';
   const fechaEl = $<HTMLInputElement>('fecha');
   const descEl = $<HTMLTextAreaElement>('descripcion');
   const normEl = $<HTMLInputElement>('normalizar');
+  const categoriaEl = $<HTMLSelectElement>('categoria');
+  const notaEl = $('categoria-nota');
   const errorEl = $('error');
   const progEl = $('progreso');
   const progTexto = $('prog-texto');
@@ -176,6 +193,30 @@ import Header from '../../components/Header.astro';
 
   /* ---------- selección de archivo ---------- */
   let archivo: File | null = null;
+  let tituloTocado = false;
+  tituloEl.addEventListener('input', () => { tituloTocado = true; });
+
+  const TITULOS: Record<string, string> = { predicacion: 'Predicación del domingo', alabanza: 'Alabanza del domingo' };
+  const NOTAS: Record<string, string> = {
+    predicacion: 'Voz: mono, 64 kbps. Nivela las partes bajas y fuertes para que se escuche parejo.',
+    alabanza: 'Música: estéreo, 128 kbps. Conserva la dinámica; solo ajusta el volumen y evita que sature.',
+  };
+
+  function actualizarTipo() {
+    notaEl.textContent = NOTAS[categoriaEl.value] ?? '';
+    if (!tituloTocado) tituloEl.value = TITULOS[categoriaEl.value] ?? tituloEl.value;
+  }
+  categoriaEl.addEventListener('change', actualizarTipo);
+
+  /** Si el nombre trae "alabanza" o "predica", y una fecha DD_MM_AAAA, rellena los campos. */
+  function detectar(nombre: string) {
+    if (/alabanza/i.test(nombre)) categoriaEl.value = 'alabanza';
+    else if (/predic|sermon/i.test(nombre)) categoriaEl.value = 'predicacion';
+    const m = nombre.match(/(\d{2})[_.-](\d{2})[_.-](\d{4})/);
+    if (m && +m[2] >= 1 && +m[2] <= 12 && +m[1] >= 1 && +m[1] <= 31) fechaEl.value = `${m[3]}-${m[2]}-${m[1]}`;
+    actualizarTipo();
+  }
+  actualizarTipo();
 
   function elegir(f: File | null) {
     archivo = f;
@@ -186,6 +227,7 @@ import Header from '../../components/Header.astro';
       return;
     }
     const esWav = /\.wav$/i.test(f.name);
+    detectar(f.name);
     dropTexto.textContent = `${f.name} — ${fmtMB(f.size)}`;
     normEl.disabled = !esWav;
     (normEl.closest('label') as HTMLElement).style.opacity = esWav ? '1' : '0.5';
@@ -229,11 +271,11 @@ import Header from '../../components/Header.astro';
     enviarBtn.disabled = si;
     cancelarBtn.classList.toggle('hidden', !si);
     progEl.classList.toggle('hidden', !si);
-    [archivoEl, tituloEl, fechaEl, descEl, normEl].forEach((el) => (el.disabled = si));
+    [archivoEl, categoriaEl, tituloEl, fechaEl, descEl, normEl].forEach((el) => (el.disabled = si));
     if (!si && archivo) normEl.disabled = !/\.wav$/i.test(archivo.name);
   }
 
-  function procesarWav(f: File, normalizar: boolean) {
+  function procesarWav(f: File, normalizar: boolean, modo: 'voz' | 'musica') {
     return new Promise<{ mp3: Uint8Array[]; segundos: number; lufsOriginal: number | null; gananciaDb: number }>((resolve, reject) => {
       worker = new Worker(new URL('../../lib/audio/procesar.worker.ts', import.meta.url), { type: 'module' });
       worker.onmessage = (e) => {
@@ -250,7 +292,7 @@ import Header from '../../components/Header.astro';
         }
       };
       worker.onerror = () => { worker?.terminate(); worker = null; reject(new Error('No se pudo procesar el audio en este navegador.')); };
-      worker.postMessage({ file: f, normalizar });
+      worker.postMessage({ file: f, normalizar, modo });
     });
   }
 
@@ -309,7 +351,7 @@ import Header from '../../components/Header.astro';
     if (!tituloEl.value.trim()) return mostrarError('Escribe un título.');
     if (!fechaEl.value) return mostrarError('Elige la fecha.');
 
-    const datos = { titulo: tituloEl.value.trim(), fecha: fechaEl.value, descripcion: descEl.value.trim() };
+    const datos = { titulo: tituloEl.value.trim(), fecha: fechaEl.value, descripcion: descEl.value.trim(), categoria: categoriaEl.value };
     const normalizar = esWav && normEl.checked;
     cancelado = false;
     subida = null;
@@ -323,7 +365,7 @@ import Header from '../../components/Header.astro';
       let pesoSubida = 100;
 
       if (esWav) {
-        const r = await procesarWav(archivo, normalizar);
+        const r = await procesarWav(archivo, normalizar, categoriaEl.value === 'alabanza' ? 'musica' : 'voz');
         blob = new Blob(r.mp3 as BlobPart[], { type: 'audio/mpeg' });
         baseSubida = normalizar ? 80 : 75;
         pesoSubida = 100 - baseSubida;
@@ -343,6 +385,8 @@ import Header from '../../components/Header.astro';
       elegir(null);
       archivoEl.value = '';
       descEl.value = '';
+      tituloTocado = false;
+      actualizarTipo();
 
       exitoEl.innerHTML = '';
       const strong = document.createElement('strong');
@@ -385,7 +429,7 @@ import Header from '../../components/Header.astro';
   });
 
   /* ---------- lista, editar, eliminar ---------- */
-  interface Sermon { id: number; titulo: string; fecha: string; descripcion: string | null; archivo: string }
+  interface Sermon { id: number; titulo: string; fecha: string; descripcion: string | null; archivo: string; categoria: string }
   let sermones: Sermon[] = [];
   const fmtFecha = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 
@@ -409,7 +453,7 @@ import Header from '../../components/Header.astro';
       t.textContent = s.titulo;
       const f = document.createElement('p');
       f.className = 'font-body text-xs text-white/50';
-      f.textContent = `${fmtFecha.format(new Date(`${s.fecha}T00:00:00Z`))} · ${s.archivo}`;
+      f.textContent = `${s.categoria === 'alabanza' ? 'Alabanza' : 'Predicación'} · ${fmtFecha.format(new Date(`${s.fecha}T00:00:00Z`))} · ${s.archivo}`;
       info.append(t, f);
 
       const editar = document.createElement('button');
@@ -440,6 +484,7 @@ import Header from '../../components/Header.astro';
   const dlg = $<HTMLDialogElement>('dlg');
   const eTitulo = $<HTMLInputElement>('e-titulo');
   const eFecha = $<HTMLInputElement>('e-fecha');
+  const eCategoria = $<HTMLSelectElement>('e-categoria');
   const eDesc = $<HTMLTextAreaElement>('e-desc');
   const eError = $('e-error');
   let editando: Sermon | null = null;
@@ -448,6 +493,7 @@ import Header from '../../components/Header.astro';
     editando = s;
     eTitulo.value = s.titulo;
     eFecha.value = s.fecha;
+    eCategoria.value = s.categoria === 'alabanza' ? 'alabanza' : 'predicacion';
     eDesc.value = s.descripcion ?? '';
     eError.classList.add('hidden');
     dlg.showModal();
@@ -460,7 +506,7 @@ import Header from '../../components/Header.astro';
       await api(`/admin/api/sermones/${editando.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ titulo: eTitulo.value, fecha: eFecha.value, descripcion: eDesc.value }),
+        body: JSON.stringify({ titulo: eTitulo.value, fecha: eFecha.value, descripcion: eDesc.value, categoria: eCategoria.value }),
       });
       dlg.close();
       cargarLista();

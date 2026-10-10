@@ -11,8 +11,8 @@ export async function onRequestPost({ request, env }) {
   const datos = leerDatos(body);
   if (datos.error) return json({ ok: false, error: datos.error }, 400);
 
-  // Nombre de archivo único: AAAA-MM-DD-titulo.mp3 (con -2, -3... si ya existe).
-  const base = `${datos.fecha}-${slug(datos.titulo) || 'audio'}`;
+  // Nombre de archivo único: AAAA-MM-DD-categoria-titulo.mp3 (con -2, -3... si ya existe).
+  const base = `${datos.fecha}-${datos.categoria}-${slug(datos.titulo) || 'audio'}`;
   let key = null;
   for (let n = 1; n <= 30 && !key; n++) {
     const candidato = n === 1 ? `${base}.mp3` : `${base}-${n}.mp3`;

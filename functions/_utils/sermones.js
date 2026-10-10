@@ -1,4 +1,5 @@
 export const CLAVE_VALIDA = /^[a-z0-9][a-z0-9._-]{0,120}\.mp3$/;
+export const CATEGORIAS = ['predicacion', 'alabanza'];
 
 export function json(data, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -32,7 +33,8 @@ export function leerDatos(body) {
   const titulo = limpiarTexto(body?.titulo, 120);
   const fecha = typeof body?.fecha === 'string' ? body.fecha : '';
   const descripcion = limpiarTexto(body?.descripcion, 500);
+  const categoria = CATEGORIAS.includes(body?.categoria) ? body.categoria : 'predicacion';
   if (!titulo) return { error: 'El título es obligatorio.' };
   if (!fechaValida(fecha)) return { error: 'La fecha no es válida.' };
-  return { titulo, fecha, descripcion };
+  return { titulo, fecha, descripcion, categoria };
 }

@@ -1,15 +1,22 @@
 /// <reference lib="webworker" />
-// Convierte un WAV a MP3 de voz (64 kbps, mono) directamente en el navegador.
-// Lee el archivo por pedazos para no cargarlo completo en memoria (un WAV de
-// 2 horas pesa ~1.4 GB) y, si se pide, normaliza el volumen en dos pasadas:
-//   1) analiza: filtro de graves + compresor suave, y mide el volumen (LUFS)
-//   2) procesa: repite el mismo tratamiento, aplica la ganancia y codifica.
+// Convierte un WAV a MP3 directamente en el navegador, sin cargarlo completo en memoria
+// (un WAV de 2 horas pesa ~1.4 GB). Dos modos:
+//
+//  - 'voz' (predicaciones): mono, 64 kbps. Filtro de graves, nivelador lento y compresor
+//    suave para que no haya partes bajas, y volumen cercano a -14.5 LUFS.
+//  - 'musica' (alabanza): estéreo, 128 kbps. Sin nivelador ni compresor para conservar la
+//    dinámica de la música; solo ajusta el volumen a -14 LUFS y limita los picos.
+//
+// Con normalización se hacen dos pasadas: 1) mide el volumen, 2) aplica la ganancia y codifica.
 
 import { Mp3Encoder } from '@breezystack/lamejs';
+
+export type Modo = 'voz' | 'musica';
 
 export interface EntradaProcesar {
   file: File;
   normalizar: boolean;
+  modo: Modo;
 }
 
 export type MensajeWorker =
@@ -17,10 +24,13 @@ export type MensajeWorker =
   | { tipo: 'listo'; mp3: Uint8Array[]; segundos: number; lufsOriginal: number | null; gananciaDb: number }
   | { tipo: 'error'; mensaje: string };
 
-const OBJETIVO_LUFS = -14.5;
+const CONFIG = {
+  voz: { objetivoLufs: -13, techoPico: 0.64, kbpsMono: 64, kbpsEstereo: 64, estereo: false },
+  musica: { objetivoLufs: -14, techoPico: 0.63, kbpsMono: 96, kbpsEstereo: 128, estereo: true },
+} as const;
+
 const GANANCIA_MAX_DB = 20;
-const TECHO_PICO = 0.668; // -3.5 dBFS: deja margen al rebote del codificador MP3
-const BITRATE = 64;
+const GANANCIA_MIN_DB = -20;
 const TASAS_MP3 = [8000, 11025, 12000, 16000, 22050, 24000, 32000, 44100, 48000];
 const BYTES_POR_LECTURA = 4 * 1024 * 1024;
 
@@ -94,11 +104,24 @@ async function leerWav(file: File): Promise<FormatoWav> {
   throw new Error('No se encontró el audio dentro del WAV.');
 }
 
-/** Lee el WAV por pedazos y entrega cada uno como mono Float32 (promedio de canales). */
-async function* leerMono(file: File, fmt: FormatoWav, factorReduccion: number) {
+/**
+ * Lee el WAV por pedazos. Entrega un arreglo de canales Float32:
+ *  - estereo = false: un solo canal (promedio de todos)
+ *  - estereo = true: izquierdo y derecho (o un canal si el archivo es mono)
+ */
+async function* leerCanales(file: File, fmt: FormatoWav, factorReduccion: number, estereo: boolean) {
   const framesPorLectura = Math.max(1024, Math.floor(BYTES_POR_LECTURA / fmt.bytesPorFrame));
   const bytesMuestra = fmt.bits / 8;
-  let resto = new Float32Array(0); // muestras sobrantes para completar un grupo de reducción
+  const nSalida = estereo ? Math.min(2, fmt.canales) : 1;
+  let restos: Float32Array[] = Array.from({ length: nSalida }, () => new Float32Array(0));
+
+  const muestra = (v: DataView, o: number) => {
+    if (fmt.flotante) return fmt.bits === 32 ? v.getFloat32(o, true) : v.getFloat64(o, true);
+    if (fmt.bits === 16) return v.getInt16(o, true) / 32768;
+    if (fmt.bits === 24) return ((v.getUint8(o) | (v.getUint8(o + 1) << 8) | (v.getInt8(o + 2) << 16)) | 0) / 8388608;
+    if (fmt.bits === 32) return v.getInt32(o, true) / 2147483648;
+    return (v.getUint8(o) - 128) / 128;
+  };
 
   for (let f = 0; f < fmt.frames; f += framesPorLectura) {
     const n = Math.min(framesPorLectura, fmt.frames - f);
@@ -106,39 +129,37 @@ async function* leerMono(file: File, fmt: FormatoWav, factorReduccion: number) {
       .slice(fmt.inicio + f * fmt.bytesPorFrame, fmt.inicio + (f + n) * fmt.bytesPorFrame)
       .arrayBuffer();
     const v = new DataView(buf);
-    let mono = new Float32Array(n);
+    let canales: Float32Array[] = Array.from({ length: nSalida }, () => new Float32Array(n));
 
     for (let i = 0; i < n; i++) {
-      let suma = 0;
-      for (let c = 0; c < fmt.canales; c++) {
-        const o = (i * fmt.canales + c) * bytesMuestra;
-        let s: number;
-        if (fmt.flotante) s = fmt.bits === 32 ? v.getFloat32(o, true) : v.getFloat64(o, true);
-        else if (fmt.bits === 16) s = v.getInt16(o, true) / 32768;
-        else if (fmt.bits === 24) s = ((v.getUint8(o) | (v.getUint8(o + 1) << 8) | (v.getInt8(o + 2) << 16)) | 0) / 8388608;
-        else if (fmt.bits === 32) s = v.getInt32(o, true) / 2147483648;
-        else s = (v.getUint8(o) - 128) / 128;
-        suma += s;
+      const base = i * fmt.canales;
+      if (estereo) {
+        for (let c = 0; c < nSalida; c++) canales[c][i] = muestra(v, (base + c) * bytesMuestra);
+      } else {
+        let suma = 0;
+        for (let c = 0; c < fmt.canales; c++) suma += muestra(v, (base + c) * bytesMuestra);
+        canales[0][i] = suma / fmt.canales;
       }
-      mono[i] = suma / fmt.canales;
     }
 
     if (factorReduccion > 1) {
-      const todo = new Float32Array(resto.length + mono.length);
-      todo.set(resto);
-      todo.set(mono, resto.length);
-      const salidaN = Math.floor(todo.length / factorReduccion);
-      const salida = new Float32Array(salidaN);
-      for (let i = 0; i < salidaN; i++) {
-        let s = 0;
-        for (let k = 0; k < factorReduccion; k++) s += todo[i * factorReduccion + k];
-        salida[i] = s / factorReduccion;
-      }
-      resto = todo.slice(salidaN * factorReduccion);
-      mono = salida;
+      canales = canales.map((canal, idx) => {
+        const todo = new Float32Array(restos[idx].length + canal.length);
+        todo.set(restos[idx]);
+        todo.set(canal, restos[idx].length);
+        const salidaN = Math.floor(todo.length / factorReduccion);
+        const salida = new Float32Array(salidaN);
+        for (let i = 0; i < salidaN; i++) {
+          let s = 0;
+          for (let k = 0; k < factorReduccion; k++) s += todo[i * factorReduccion + k];
+          salida[i] = s / factorReduccion;
+        }
+        restos[idx] = todo.slice(salidaN * factorReduccion);
+        return salida;
+      });
     }
 
-    yield { mono, avance: (f + n) / fmt.frames };
+    yield { canales, avance: (f + n) / fmt.frames };
   }
 }
 
@@ -200,7 +221,7 @@ function ponderacionK(fs: number): [Biquad, Biquad] {
 }
 
 /**
- * Filtro de graves (70 Hz) + nivelador lento + compresor suave. Mismo tratamiento en las dos pasadas.
+ * Filtro de graves (70 Hz) + nivelador lento + compresor suave (solo para voz).
  *  - El nivelador acerca el volumen de cada tramo (ventana de ~1.5 s) a un nivel común, subiendo
  *    las partes bajas y bajando las muy fuertes. En silencio mantiene la ganancia (no sube el ruido).
  *  - El compresor controla los picos rápidos.
@@ -267,22 +288,26 @@ class Cadena {
 /* --------------------------- medición de volumen -------------------------- */
 
 class Medidor {
-  private alto: Biquad;
-  private rlb: Biquad;
+  private filtros: [Biquad, Biquad][];
   private sumas: number[] = [];
   private acum = 0;
   private cuenta = 0;
   private bloque: number;
 
-  constructor(fs: number) {
-    [this.alto, this.rlb] = ponderacionK(fs);
+  constructor(fs: number, canales: number) {
+    this.filtros = Array.from({ length: canales }, () => ponderacionK(fs));
     this.bloque = Math.round(fs * 0.1); // sub-bloques de 100 ms
   }
 
-  agregar(x: Float32Array) {
-    for (let i = 0; i < x.length; i++) {
-      const y = this.rlb.paso(this.alto.paso(x[i]));
-      this.acum += y * y;
+  /** Suma la potencia de todos los canales (BS.1770: L y R con peso 1). */
+  agregar(canales: Float32Array[]) {
+    const n = canales[0].length;
+    for (let i = 0; i < n; i++) {
+      for (let c = 0; c < canales.length; c++) {
+        const [alto, rlb] = this.filtros[c];
+        const y = rlb.paso(alto.paso(canales[c][i]));
+        this.acum += y * y;
+      }
       if (++this.cuenta === this.bloque) {
         this.sumas.push(this.acum / this.bloque);
         this.acum = 0;
@@ -311,12 +336,13 @@ class Medidor {
 
 /**
  * Limitador de ganancia con anticipación (5 ms): baja el volumen suavemente justo antes de
- * cada pico para que nunca pase del techo, sin recortar la onda. Introduce un retraso de
- * LARGO - 1 muestras: la salida va ligeramente atrasada y `fin()` entrega el resto.
+ * cada pico para que nunca pase del techo, sin recortar la onda. En estéreo la reducción es
+ * la misma en ambos canales (se conserva la imagen). Introduce un retraso de LARGO - 1
+ * muestras: la salida va ligeramente atrasada y `fin()` entrega el resto.
  */
 class Limitador {
   private largo: number;
-  private retraso: Float32Array;
+  private retraso: Float32Array[];
   private colaIdx: Int32Array;
   private colaVal: Float32Array;
   private cabeza = 0;
@@ -329,9 +355,9 @@ class Limitador {
   private aSuelta: number;
   private n = 0;
 
-  constructor(fs: number, private techo: number) {
+  constructor(fs: number, private canales: number, private techo: number) {
     this.largo = Math.max(2, Math.round(0.005 * fs));
-    this.retraso = new Float32Array(this.largo);
+    this.retraso = Array.from({ length: canales }, () => new Float32Array(this.largo));
     this.colaIdx = new Int32Array(this.largo + 1);
     this.colaVal = new Float32Array(this.largo + 1);
     this.anillo = new Float32Array(this.largo).fill(1);
@@ -339,62 +365,66 @@ class Limitador {
     this.aSuelta = 1 - Math.exp(-1 / (0.1 * fs));
   }
 
-  private paso(x: number): number {
+  procesar(x: Float32Array[]): Float32Array[] {
     const L = this.largo;
     const S = L + 1;
-    const a = x < 0 ? -x : x;
-    const req = a > this.techo ? this.techo / a : 1;
+    const total = x[0].length;
+    const salida = x.map(() => new Float32Array(total));
+    let k = 0;
 
-    // mínimo móvil de la ganancia requerida (cola monótona)
-    while (this.cuenta > 0 && this.colaVal[(this.cola - 1 + S) % S] >= req) {
-      this.cola = (this.cola - 1 + S) % S;
-      this.cuenta--;
-    }
-    this.colaIdx[this.cola] = this.n;
-    this.colaVal[this.cola] = req;
-    this.cola = (this.cola + 1) % S;
-    this.cuenta++;
+    for (let i = 0; i < total; i++) {
+      let a = 0;
+      for (let c = 0; c < this.canales; c++) {
+        const v = x[c][i];
+        const av = v < 0 ? -v : v;
+        if (av > a) a = av;
+      }
+      const req = a > this.techo ? this.techo / a : 1;
 
-    this.retraso[this.n % L] = x;
-
-    let salida = NaN;
-    if (this.n >= L - 1) {
-      const desde = this.n - L + 1;
-      while (this.colaIdx[this.cabeza] < desde) {
-        this.cabeza = (this.cabeza + 1) % S;
+      // mínimo móvil de la ganancia requerida (cola monótona)
+      while (this.cuenta > 0 && this.colaVal[(this.cola - 1 + S) % S] >= req) {
+        this.cola = (this.cola - 1 + S) % S;
         this.cuenta--;
       }
-      const m = this.colaVal[this.cabeza];
-      this.suma += m - this.anillo[this.anilloPos];
-      this.anillo[this.anilloPos] = m;
-      this.anilloPos = (this.anilloPos + 1) % L;
+      this.colaIdx[this.cola] = this.n;
+      this.colaVal[this.cola] = req;
+      this.cola = (this.cola + 1) % S;
+      this.cuenta++;
 
-      const suave = Math.min(1, this.suma / L);
-      this.ganancia = Math.min(suave, this.ganancia + (1 - this.ganancia) * this.aSuelta);
-      salida = this.retraso[(this.n + 1) % L] * this.ganancia;
+      const pos = this.n % L;
+      for (let c = 0; c < this.canales; c++) this.retraso[c][pos] = x[c][i];
+
+      if (this.n >= L - 1) {
+        const desde = this.n - L + 1;
+        while (this.colaIdx[this.cabeza] < desde) {
+          this.cabeza = (this.cabeza + 1) % S;
+          this.cuenta--;
+        }
+        const m = this.colaVal[this.cabeza];
+        this.suma += m - this.anillo[this.anilloPos];
+        this.anillo[this.anilloPos] = m;
+        this.anilloPos = (this.anilloPos + 1) % L;
+
+        const suave = Math.min(1, this.suma / L);
+        this.ganancia = Math.min(suave, this.ganancia + (1 - this.ganancia) * this.aSuelta);
+        const lectura = (this.n + 1) % L;
+        for (let c = 0; c < this.canales; c++) salida[c][k] = this.retraso[c][lectura] * this.ganancia;
+        k++;
+      }
+      this.n++;
     }
-    this.n++;
-    return salida;
+    return salida.map((s) => s.subarray(0, k));
   }
 
-  procesar(x: Float32Array): Float32Array {
-    const salida = new Float32Array(x.length);
-    let k = 0;
-    for (let i = 0; i < x.length; i++) {
-      const y = this.paso(x[i]);
-      if (y === y) salida[k++] = y; // descarta NaN (aún no hay salida)
-    }
-    return salida.subarray(0, k);
-  }
-
-  fin(): Float32Array {
-    return this.procesar(new Float32Array(this.largo - 1));
+  fin(): Float32Array[] {
+    return this.procesar(Array.from({ length: this.canales }, () => new Float32Array(this.largo - 1)));
   }
 }
 
 /* ------------------------------- principal -------------------------------- */
 
-async function procesar({ file, normalizar }: EntradaProcesar) {
+async function procesar({ file, normalizar, modo }: EntradaProcesar) {
+  const cfg = CONFIG[modo];
   const fmt = await leerWav(file);
 
   let factor = 1;
@@ -406,60 +436,88 @@ async function procesar({ file, normalizar }: EntradaProcesar) {
     tasa = tasa / factor;
   }
   const segundos = fmt.frames / fmt.tasa;
+  const nCanales = cfg.estereo ? Math.min(2, fmt.canales) : 1;
+  const usarCadena = modo === 'voz';
 
   let lufsOriginal: number | null = null;
   let gananciaDb = 0;
 
   if (normalizar) {
-    const medidor = new Medidor(tasa);
-    const cadena = new Cadena(tasa);
-    for await (const { mono, avance } of leerMono(file, fmt, factor)) {
-      const tratado = new Float32Array(mono.length);
-      cadena.procesar(mono, tratado);
-      medidor.agregar(tratado);
+    const medidor = new Medidor(tasa, nCanales);
+    const cadenas = usarCadena ? Array.from({ length: nCanales }, () => new Cadena(tasa)) : null;
+    for await (const { canales, avance } of leerCanales(file, fmt, factor, cfg.estereo)) {
+      let tratados = canales;
+      if (cadenas) {
+        tratados = canales.map((c, i) => {
+          const t = new Float32Array(c.length);
+          cadenas[i].procesar(c, t);
+          return t;
+        });
+      }
+      medidor.agregar(tratados);
       enviar({ tipo: 'progreso', fase: 'analizando', pct: avance });
     }
     lufsOriginal = medidor.integrado();
     if (lufsOriginal === null) throw new Error('El audio parece estar en silencio.');
-    gananciaDb = Math.min(OBJETIVO_LUFS - lufsOriginal, GANANCIA_MAX_DB);
+    gananciaDb = Math.max(GANANCIA_MIN_DB, Math.min(cfg.objetivoLufs - lufsOriginal, GANANCIA_MAX_DB));
   }
 
   const ganancia = Math.pow(10, gananciaDb / 20);
-  const cadena = normalizar ? new Cadena(tasa) : null;
-  const limitador = normalizar ? new Limitador(tasa, TECHO_PICO) : null;
-  const codificador = new Mp3Encoder(1, tasa, BITRATE);
+  const cadenas = normalizar && usarCadena ? Array.from({ length: nCanales }, () => new Cadena(tasa)) : null;
+  const limitador = normalizar ? new Limitador(tasa, nCanales, cfg.techoPico) : null;
+  const kbps = nCanales === 2 ? cfg.kbpsEstereo : cfg.kbpsMono;
+  const codificador = new Mp3Encoder(nCanales, tasa, kbps);
   const salida: Uint8Array[] = [];
   const guardar = (b: Int8Array | Uint8Array) => {
     if (b.length) salida.push(new Uint8Array(b));
   };
 
   const TAM = 1152 * 16;
-  let pendiente = new Int16Array(0);
-  const codificar = (x: Float32Array) => {
-    const pcm = new Int16Array(pendiente.length + x.length);
-    pcm.set(pendiente);
-    for (let i = 0; i < x.length; i++) {
-      const v = x[i] > 1 ? 1 : x[i] < -1 ? -1 : x[i];
-      pcm[pendiente.length + i] = Math.round(v * 32767);
-    }
+  let pendiente: Int16Array[] = Array.from({ length: nCanales }, () => new Int16Array(0));
+  const codificar = (x: Float32Array[]) => {
+    const pcm = x.map((canal, c) => {
+      const out = new Int16Array(pendiente[c].length + canal.length);
+      out.set(pendiente[c]);
+      for (let i = 0; i < canal.length; i++) {
+        const v = canal[i] > 1 ? 1 : canal[i] < -1 ? -1 : canal[i];
+        out[pendiente[c].length + i] = Math.round(v * 32767);
+      }
+      return out;
+    });
     let o = 0;
-    for (; o + TAM <= pcm.length; o += TAM) guardar(codificador.encodeBuffer(pcm.subarray(o, o + TAM)));
-    pendiente = pcm.slice(o);
+    for (; o + TAM <= pcm[0].length; o += TAM) {
+      guardar(
+        nCanales === 2
+          ? codificador.encodeBuffer(pcm[0].subarray(o, o + TAM), pcm[1].subarray(o, o + TAM))
+          : codificador.encodeBuffer(pcm[0].subarray(o, o + TAM))
+      );
+    }
+    pendiente = pcm.map((p) => p.slice(o));
   };
 
-  for await (const { mono, avance } of leerMono(file, fmt, factor)) {
-    let x = mono;
-    if (cadena && limitador) {
-      x = new Float32Array(mono.length);
-      cadena.procesar(mono, x);
-      for (let i = 0; i < x.length; i++) x[i] *= ganancia;
+  for await (const { canales, avance } of leerCanales(file, fmt, factor, cfg.estereo)) {
+    let x = canales;
+    if (limitador) {
+      x = canales.map((c, i) => {
+        const t = new Float32Array(c.length);
+        if (cadenas) cadenas[i].procesar(c, t);
+        else t.set(c);
+        for (let k = 0; k < t.length; k++) t[k] *= ganancia;
+        return t;
+      });
       x = limitador.procesar(x);
     }
     codificar(x);
     enviar({ tipo: 'progreso', fase: 'comprimiendo', pct: avance });
   }
   if (limitador) codificar(limitador.fin());
-  if (pendiente.length) guardar(codificador.encodeBuffer(pendiente));
+  if (pendiente[0].length) {
+    guardar(
+      nCanales === 2
+        ? codificador.encodeBuffer(pendiente[0], pendiente[1])
+        : codificador.encodeBuffer(pendiente[0])
+    );
+  }
   guardar(codificador.flush());
 
   enviar(

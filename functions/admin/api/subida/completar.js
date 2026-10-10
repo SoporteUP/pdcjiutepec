@@ -29,9 +29,9 @@ export async function onRequestPost({ request, env }) {
 
   try {
     const r = await env.DB.prepare(
-      'INSERT INTO sermones (titulo, fecha, descripcion, archivo) VALUES (?1, ?2, ?3, ?4)'
+      'INSERT INTO sermones (titulo, fecha, descripcion, archivo, categoria) VALUES (?1, ?2, ?3, ?4, ?5)'
     )
-      .bind(datos.titulo, datos.fecha, datos.descripcion || null, key)
+      .bind(datos.titulo, datos.fecha, datos.descripcion || null, key, datos.categoria)
       .run();
     return json({ ok: true, id: r.meta.last_row_id, archivo: key });
   } catch {

@@ -1,0 +1,26 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Header from '../components/Header.astro';
+import ReproductorAudio from '../components/ReproductorAudio.astro';
+---
+
+<Layout
+  title="Alabanza y Adoración en Audio | Iglesia Puerta del Cielo Jiutepec"
+  description="Escucha la alabanza y adoración de la Iglesia Cristiana Puerta del Cielo en Jiutepec, Morelos. Audios de los tiempos de alabanza de nuestras reuniones."
+>
+  <Header />
+
+  <main class="pt-32 pb-24 px-6 max-w-5xl mx-auto">
+    <h1 class="font-display text-5xl sm:text-6xl uppercase text-center mb-4">Alabanza</h1>
+    <p class="font-body text-white/60 text-center max-w-xl mx-auto mb-12">
+      Vuelve a vivir los tiempos de alabanza y adoración de nuestras reuniones.
+    </p>
+
+    <ReproductorAudio categoria="alabanza" vacio="Próximamente subiremos la alabanza." />
+
+    <p class="mt-14 text-center font-body text-sm text-white/50">
+      ¿Quieres escuchar las predicaciones?
+      <a href="/sermones" class="text-pdc-cyan hover:text-pdc-magenta transition-colors font-semibold">Ve a Sermones</a>.
+    </p>
+  </main>
+</Layout>
