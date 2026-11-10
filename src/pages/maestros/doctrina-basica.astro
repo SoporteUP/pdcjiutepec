@@ -455,8 +455,11 @@ const items = secciones.map((s: any) => {
 		.marca-txt { display: none; }
 		.marca { flex: 1; }
 		.indice {
-			position: fixed; z-index: 80; top: 0; left: 0; bottom: 0; width: min(21rem, 88vw); max-height: none;
-			background: var(--panel); padding: 0 0.9rem 2rem; box-shadow: 8px 0 30px rgba(0, 0, 0, 0.35);
+			position: fixed; z-index: 80; top: 0; left: 0; width: min(21rem, 88vw); max-height: none;
+			/* En el celular "100vh" incluye la barra del navegador y deja el final del índice fuera de la pantalla: se usa la altura visible real (dvh). */
+			height: 100vh; height: 100dvh;
+			overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch;
+			background: var(--panel); padding: 0 0.9rem calc(5rem + env(safe-area-inset-bottom)); box-shadow: 8px 0 30px rgba(0, 0, 0, 0.35);
 			transform: translateX(-105%); transition: transform 0.22s ease; visibility: hidden;
 		}
 		.indice.abierto { transform: none; visibility: visible; }
